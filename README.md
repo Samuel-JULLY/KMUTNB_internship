@@ -1,6 +1,8 @@
-# KMUTNB_internship
+# KMUTNB internship
 
-# To predict fault for manage the maintenance plan
+# Forecasting Faults in Electrical System Equipment
+
+## To predict fault for manage the maintenance plan
 
 - Fault Prediction Techniques – Utilizing historical data, machine learning, and statistical models to predict equipment
 failures.
