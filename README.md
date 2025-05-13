@@ -12,4 +12,6 @@ failures.
 - Preventive and Predictive Maintenance –Strategies for reducing unplanned outages and extending equipment life.
 - Applications in Power Grids and Industrial Systems – How utilities and industries benefit from fault forecasting.
 
-Samuel JULLY & Valentin OBERT le meilleur
+Samuel JULLY & Valentin OBERT
+
+CESI GRADUATE SCHOOL OF ENGINEERING
