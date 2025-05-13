@@ -12,6 +12,31 @@ failures.
 - Preventive and Predictive Maintenance –Strategies for reducing unplanned outages and extending equipment life.
 - Applications in Power Grids and Industrial Systems – How utilities and industries benefit from fault forecasting.
 
+# Forecasting the exports volume of processed seafood in Thaialnd
+
+## Dataset
+
+- Aquaculture Production Data
+    Production volumes, cultivated area
+
+- Historical export data
+    Export volume, destination, market shares, price trends
+
+- Economic Indicators
+    Exchange rate, production costs, domestic inflation, global demands
+
+- Environmental and Climatics factors
+    Water quality, climate events, disease outbreaks
+
+- Government Policies and Regulations
+    Export quota or licenses, trade agreements, 
+
+- Global Market Competition
+    Price comparisons with other top exporters
+
+- Consumer and market Trends
+    demands, health-conscious consumer behaviour
+
 Samuel JULLY & Valentin OBERT
 
 CESI GRADUATE SCHOOL OF ENGINEERING
