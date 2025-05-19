@@ -37,6 +37,20 @@ failures.
 - Consumer and market Trends
     demands, health-conscious consumer behaviour
 
+
+# Status of the project
+
+- 1.0 Filter and Clean Import/Export CSV Data from GitHub
+
+- 2.0 Classification Models
+    * 2.1 Splitting the Dataset into Training and Test Sets
+    * 2.2 Training Classification Models
+    * 2.3 Applying the Models
+
+## Authors
+
 Samuel JULLY & Valentin OBERT
 
 CESI GRADUATE SCHOOL OF ENGINEERING
+
+
