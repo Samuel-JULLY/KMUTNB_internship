@@ -1,38 +1,113 @@
 
 # Forecasting the exports volume of processed seafood in Thailand
 
-## Dataset
+## Project Overview
 
-- Aquaculture Production Data
-    Production volumes, cultivated area
+This project aims to forecast monthly export volumes of processed seafood products from Thailand through December 2025. It uses historical time series data (2007–2024) and compares several regression models, with and without hyperparameter optimization, to evaluate forecasting performance.
 
-- Historical export data
-    Export volume, destination, market shares, price trends
+## Objectives
 
-- Economic Indicators
-    Exchange rate, production costs, domestic inflation, global demands
+- Load, clean, and preprocess seafood export data
 
-- Environmental and Climatics factors
-    Water quality, climate events, disease outbreaks
+- Generate temporal features (trend and seasonality)
 
-- Government Policies and Regulations
-    Export quota or licenses, trade agreements, 
+- Train and evaluate multiple regression models
 
-- Global Market Competition
-    Price comparisons with other top exporters
+- Optimize model performance using cross-validation and grid search
 
-- Consumer and market Trends
-    demands, health-conscious consumer behaviour
+- Forecast monthly export volumes through 2025
+
+- Visualize and compare model predictions
 
 
-# Status of the project
+# Methodology
 
-- 1.0 Filter and Clean Import/Export CSV Data from GitHub
+1. Data Preprocessing
 
-- 2.0 Classification Models
-    * 2.1 Splitting the Dataset into Training and Test Sets
-    * 2.2 Training Classification Models
-    * 2.3 Applying the Models
+    - Remove rows with zero values across all product columns
+
+    - Convert Year and Month into datetime and numeric time index
+
+    - Create seasonal features using sine and cosine of the month
+
+2. Modeling
+
+    - Use time series cross-validation (5-fold) to evaluate the model
+
+    - Metrics: RMSE (Root Mean Squared Error) and R² Score
+
+3. Hyperparameter Optimization
+
+    - Perform GridSearchCV on SVR, Decision Tree, Random Forest, and KNN
+
+    - Evaluate improvements post-tuning
+
+4. Forecasting
+
+    - Generate month-by-month predictions through December 2025
+
+    - Forecast both total exports and category-specific volumes
+
+## Models Used
+
+- Linear Regression
+
+- Support Vector Regression (SVR)
+
+- Decision Tree Regressor
+
+- Random Forest Regressor
+
+- K-Nearest Neighbors Regressor (KNN)
+
+## Visualizations
+
+- Line plots: historical vs predicted values
+
+- Scatter plots: actual vs predicted values per fold
+
+- Summary tables: RMSE and R² (mean ± std) for each model
+
+- Combined forecast plots (2007–2025) for all models
+
+## Key Results
+
+- Random Forest achieved the best balance of accuracy and stability after hyperparameter tuning.
+
+- KNN produced competitive RMSE scores but could not extrapolate beyond 2024.
+
+- Linear models (Linear Regression and SVR) failed to capture non-linear temporal patterns.
+
+## Project Structure
+
+.
+├── DATA/
+│   ├── Export 2007-2024.xlsx
+│   └── Export 2007-2024.csv
+├── notebook/
+│   └── forecasting_project.ipynb
+├── Projet.html
+├── README.md
+
+## Requirements
+
+To run this project, you need Python ≥ 3.8 and the following libraries:
+
+Required Python Packages : 
+
+| Package        | Purpose                                                                                  |
+| -------------- | ---------------------------------------------------------------------------------------- |
+| `pandas`       | Data loading and manipulation                                                            |
+| `numpy`        | Numerical operations and math functions                                                  |
+| `matplotlib`   | Data visualization (line and scatter plots)                                              |
+| `scikit-learn` | Machine learning models, evaluation metrics, cross-validation, and hyperparameter tuning |
+| `openpyxl`     | Required by `pandas` to read `.xlsx` Excel files                                         |
+
+You can install all dependencies using pip:
+
+``` python
+pip install pandas numpy matplotlib scikit-learn openpyxl
+```
 
 ## Authors
 
