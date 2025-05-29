@@ -81,12 +81,19 @@ This project aims to forecast monthly export volumes of processed seafood produc
 ## Project Structure
 
 .
+
 ├── DATA/
+
 │   ├── Export 2007-2024.xlsx
+
 │   └── Export 2007-2024.csv
+
 ├── notebook/
+
 │   └── forecasting_project.ipynb
+
 ├── Projet.html
+
 ├── README.md
 
 ## Requirements
