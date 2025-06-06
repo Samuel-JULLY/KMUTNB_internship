@@ -1,4 +1,4 @@
-Tr.,MFG,KV,MVA,Age,Year Test,O2,N2,CO2,CO,H2,CH4,C2H2,C2H4,C2H6,C3H6,C3H8,TCG,TEMP,WATER,year_num,R1,R2,R3,R4,R5,Duval_Total,IRM_fault,DRM_fault,RRM_fault,Duval_Triangle_fault,Duval_Pentagon_fault,fault_majority_vote,faults_index
+Tr.,MFG,KV,MVA,Age,Year Test,O2,N2,CO2,CO,H2,CH4,C2H2,C2H4,C2H6,C3H6,C3H8,TCG,TEMP,WATER,year_num,R1,R2,R3,R4,R5,Duval_Total,IRM_fault,DRM_fault,RRM_fault,DTM_fault,DPM_fault,fault_majority_vote,faults_index
 1.0,ABB,115/22,50,17,2020,5405,55119,1851.0,202.0,10.0,16,20.0,2.0,1.0,2.0,1.0,234.0,47,10,5,1.6,10.0,1.25,0.05,2.0,38.0,Uncertain,Uncertain,Uncertain,PD,PD,PD,3
 1.0,ABB,115/22,50,17,2021,16174,64807,684.0,121.0,14.0,10,20.0,2.0,2.0,2.0,1.0,152.0,46,38,6,0.7142857142857143,10.0,2.0,0.1,1.0,32.0,Uncertain,Uncertain,Uncertain,PD,PD,PD,3
 1.0,ABB,115/22,50,17,2022,10316,46537,1196.0,163.0,9.0,9,20.0,2.0,2.0,1.0,2.0,184.0,48,17,7,1.0,10.0,2.2222222222222223,0.1,1.0,31.0,Uncertain,Uncertain,Uncertain,PD,PD,PD,3
