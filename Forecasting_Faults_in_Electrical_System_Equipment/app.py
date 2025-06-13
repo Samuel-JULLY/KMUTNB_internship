@@ -5,7 +5,7 @@ import pandas as pd
 import json
 import base64
 import io
-from script import process_csv_data
+from script import process_csv_data  # Assure-toi que ce script existe et contient une fonction process_csv_data
 
 app = dash.Dash(__name__, suppress_callback_exceptions=True)
 server = app.server
@@ -28,20 +28,39 @@ def convert_context_to_json_serializable(context):
     return result
 
 app.layout = html.Div([
-    html.H1("Analyse et Prédiction des Défaillances DGA", style={'textAlign': 'center', 'color': '#0A2A5E'}),
+    html.H1("Analyse et Prédiction des Défaillances DGA"),
 
     html.Div([
         html.H2("Charger votre fichier CSV"),
         dcc.Upload(
             id='upload-data',
             children=html.Div(['Glissez/Déposez ou ', html.A('sélectionnez un fichier')]),
-            style={
-                'width': '98%', 'height': '60px', 'lineHeight': '60px',
-                'borderWidth': '1px', 'borderStyle': 'dashed', 'borderRadius': '5px',
-                'textAlign': 'center', 'margin': '10px'
-            },
             multiple=False
         ),
+    ], className="card upload-section"),
+
+    html.Button("☰", id="hamburger-button", className="hamburger-icon"),
+
+    html.Div(id="sidebar", className="sidebar", children=[
+        html.H2("\n"),
+        html.H2("Paramètres d'Analyse"),
+        html.Div([
+            html.Label("Modèle"),
+            dcc.Dropdown(id='model-select', options=[], value=None, clearable=False, className="custom-dropdown"),
+        ], className="control-group"),
+        html.Div([
+            html.Label("KV"),
+            dcc.Dropdown(id='kv-select', options=[], value="all", clearable=False, className="custom-dropdown"),
+        ], className="control-group"),
+        html.Div([
+            html.Label("MFG"),
+            dcc.Dropdown(id='mfg-select', options=[], value="all", clearable=False, className="custom-dropdown"),
+        ], className="control-group"),
+        html.Div([
+            html.Label("Intervalle d'années"),
+            dcc.RangeSlider(id='year-slider'),
+        ], className="control-group"),
+        html.Button("Réinitialiser les filtres", id="reset-button", n_clicks=0, className="reset-button")
     ]),
 
     dcc.Store(id='processed-data', data={}),
@@ -57,7 +76,6 @@ app.layout = html.Div([
 def handle_uploaded_file(contents):
     if contents is None:
         return no_update
-
     content_type, content_string = contents.split(',')
     decoded = base64.b64decode(content_string).decode('utf-8')
 
@@ -71,48 +89,51 @@ def handle_uploaded_file(contents):
 
 @app.callback(
     Output('main-interface', 'children'),
+    Output('model-select', 'options'),
+    Output('model-select', 'value'),
+    Output('kv-select', 'options'),
+    Output('kv-select', 'value'),
+    Output('mfg-select', 'options'),
+    Output('mfg-select', 'value'),
+    Output('year-slider', 'min'),
+    Output('year-slider', 'max'),
+    Output('year-slider', 'value'),
+    Output('year-slider', 'marks'),
     Input('processed-data', 'data')
 )
 def display_main_interface(data):
     if not data:
-        return html.Div("Aucune donnée traitée. Veuillez uploader un fichier CSV.")
+        return html.Div("Aucune donnée traitée. Veuillez uploader un fichier CSV."), [], None, [], "all", [], "all", 0, 0, [0, 0], {}
 
     df = pd.read_json(data['df'], orient='split')
     fault_labels = {int(k): v for k, v in data['fault_labels'].items()}
-    best_temporal_model_name = data['best_temporal_model_name']
-
+    best_model = data['best_temporal_model_name']
     available_models = list(data['all_model_predictions'].keys())
-    available_kvs = sorted(df["KV"].dropna().unique())
-    available_kvs_options = [{"label": "Tous", "value": "all"}] + [{"label": k, "value": k} for k in available_kvs]
-    available_mfgs = sorted(df["MFG"].dropna().unique())
-    available_mfgs_options = [{"label": "Tous", "value": "all"}] + [{"label": m, "value": m} for m in available_mfgs]
-    year_range = [int(df["Year Test"].min()), int(df["Year Test"].max())]
+    kvs = sorted(df["KV"].dropna().unique())
+    kv_options = [{"label": "Tous", "value": "all"}] + [{"label": k, "value": k} for k in kvs]
+    mfgs = sorted(df["MFG"].dropna().unique())
+    mfg_options = [{"label": "Tous", "value": "all"}] + [{"label": m, "value": m} for m in mfgs]
+    year_min = int(df["Year Test"].min())
+    year_max = int(df["Year Test"].max())
+    marks = {str(y): str(y) for y in range(year_min, year_max + 1, 2)}
 
-    return html.Div([
-        html.Div([
-            html.Label("Modèle"),
-            dcc.Dropdown(id='model-select', options=[{"label": m, "value": m} for m in available_models],
-                         value=best_temporal_model_name, clearable=False),
-
-            html.Label("KV"),
-            dcc.Dropdown(id='kv-select', options=available_kvs_options, value="all", clearable=False),
-
-            html.Label("MFG"),
-            dcc.Dropdown(id='mfg-select', options=available_mfgs_options, value="all", clearable=False),
-
-            html.Label("Intervalle d'années"),
-            dcc.RangeSlider(id='year-slider', min=year_range[0], max=year_range[1], value=year_range,
-                            step=1, marks={str(y): str(y) for y in range(year_range[0], year_range[1]+1, 2)}),
-
-            html.Button("Réinitialiser les filtres", id="reset-button", n_clicks=0)
-        ], style={'width': '30%', 'display': 'inline-block', 'verticalAlign': 'top'}),
-
+    return (
         html.Div([
             html.H3(id="graph-title"),
             dcc.Graph(id='main-graph'),
-            html.Div(id='metrics-output')
-        ], style={'width': '68%', 'display': 'inline-block'})
-    ])
+            html.Div(id='metrics-output', className="metrics-card")
+        ], className="card graph-column"),
+        [{"label": m, "value": m} for m in available_models],
+        best_model,
+        kv_options,
+        "all",
+        mfg_options,
+        "all",
+        year_min,
+        year_max,
+        [year_min, year_max],
+        marks
+    )
 
 @app.callback(
     Output('main-graph', 'figure'),
@@ -133,14 +154,14 @@ def update_graph(model_name, kv_selected, mfg_selected, year_range, reset_clicks
     all_model_predictions = {k: pd.read_json(v, orient='split') for k, v in data['all_model_predictions'].items()}
     metrics_df_temporal = pd.read_json(data['metrics_df_temporal'], orient='split')
     fault_labels = {int(k): v for k, v in data['fault_labels'].items()}
-    best_temporal_model_name = data['best_temporal_model_name']
+    best_model = data['best_temporal_model_name']
 
     ctx_triggered = ctx.triggered_id
     if ctx_triggered == 'reset-button':
         kv_selected = 'all'
         mfg_selected = 'all'
         year_range = [int(df['Year Test'].min()), int(df['Year Test'].max())]
-        model_name = best_temporal_model_name
+        model_name = best_model
 
     filtered_df = df[df['Year Test'].between(*year_range)]
     if kv_selected != 'all':
@@ -162,12 +183,11 @@ def update_graph(model_name, kv_selected, mfg_selected, year_range, reset_clicks
     if model_name in all_model_predictions:
         preds = all_model_predictions[model_name]
         last_train_year = df['Year Test'].max()
-        initial_prediction_points = {}
         last_year_data = filtered_df[filtered_df['Year Test'] == last_train_year]
-        if not last_year_data.empty:
-            proportions = last_year_data['true_fault_index'].value_counts(normalize=True).to_dict()
-            for idx, prop in proportions.items():
-                initial_prediction_points[fault_labels[idx]] = prop
+        initial_prediction_points = {
+            fault_labels[idx]: prop
+            for idx, prop in last_year_data['true_fault_index'].value_counts(normalize=True).items()
+        }
 
         for fault in preds.columns:
             plot_preds = preds.copy()
@@ -193,7 +213,6 @@ def update_graph(model_name, kv_selected, mfg_selected, year_range, reset_clicks
     ])
 
     title = f"Prédiction des proportions de défaillances par {model_name} (KV: {kv_selected}, MFG: {mfg_selected})"
-
     figure = {
         'data': traces,
         'layout': go.Layout(
@@ -207,5 +226,29 @@ def update_graph(model_name, kv_selected, mfg_selected, year_range, reset_clicks
 
     return figure, metrics_text, title
 
+@app.callback(
+    Output('sidebar', 'className'),
+    Input('hamburger-button', 'n_clicks'),
+    State('sidebar', 'className'),
+    prevent_initial_call=True
+)
+def toggle_sidebar(n_clicks, current_class):
+    if 'open' in current_class:
+        return 'sidebar'
+    else:
+        return 'sidebar open'
+
 if __name__ == '__main__':
     app.run(debug=True)
+import dash_core_components as dcc
+import dash_html_components as html
+
+app.layout = html.Div([
+    # ta sidebar, etc.
+
+    dcc.Loading(
+        id="loading-graph",
+        type="circle",  # ou "dot", "cube", "graph" etc.
+        children=html.Div(id="graph-container")
+    )
+])

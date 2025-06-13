@@ -1,0 +1,260 @@
+/* General Body Styles */
+body {
+    font-family: 'Arial', sans-serif;
+    margin: 0;
+    padding: 20px;
+    background-color: #f4f7f6; /* Light gray background */
+    color: #333;
+}
+
+/* Header Styles */
+h1 {
+    color: #0A2A5E; /* Dark blue for the main title */
+    text-align: center;
+    margin-bottom: 30px;
+    font-size: 2.5em;
+    font-weight: bold;
+}
+
+h2 {
+    color: #0A2A5E;
+    font-size: 1.8em;
+    border-bottom: 2px solid #e0e0e0;
+    padding-bottom: 10px;
+    margin-top: 20px;
+    margin-bottom: 20px; /* Ajouté pour un meilleur espacement */
+}
+
+h3 {
+    color: #0A2A5E;
+    font-size: 1.5em;
+    margin-top: 0; /* Important pour ne pas avoir un double espacement avec le card padding */
+    margin-bottom: 20px;
+    text-align: center; /* Centre le titre du graphique */
+}
+
+h4 {
+    color: #0A2A5E;
+    font-size: 1.2em;
+    margin-top: 0; /* Réinitialisé pour un meilleur contrôle via le padding du card */
+    margin-bottom: 15px;
+}
+
+/* Base Card Styling */
+.card {
+    background-color: #ffffff;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.05);
+    padding: 25px; /* Augmenté le padding pour plus d'espace */
+    margin-bottom: 25px; /* Espacement entre les cartes */
+}
+
+/* Upload Section */
+.upload-section {
+    width: 70%; /* Légèrement plus étroit */
+    margin: 30px auto; /* Centré horizontalement et espacé */
+    padding: 30px;
+}
+
+#upload-data {
+    border: 2px dashed #0A2A5E;
+    background-color: #e6f7ff;
+    padding: 25px; /* Augmenté le padding */
+    text-align: center;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+    border-radius: 8px;
+    height: auto; /* Permettre à la hauteur de s'ajuster au contenu */
+    line-height: normal; /* Réinitialiser le line-height si défini précédemment */
+}
+
+#upload-data:hover {
+    background-color: #d0efff;
+}
+
+#upload-data div {
+    font-size: 1.2em; /* Légèrement plus grand */
+    color: #0A2A5E;
+    margin-bottom: 10px; /* Espace entre le texte et le lien */
+}
+
+#upload-data a {
+    color: #007bff;
+    text-decoration: none;
+    font-weight: bold;
+}
+
+#upload-data a:hover {
+    text-decoration: underline;
+}
+
+/* Main Content Layout (Flexbox for columns) */
+.main-content-layout {
+    display: flex;
+    gap: 30px; /* Espace entre les colonnes */
+    align-items: flex-start; /* Aligne les éléments en haut */
+}
+
+/* Controls Column (Left) */
+.controls-column {
+    flex: 0 0 300px; /* Largeur fixe pour la colonne des contrôles */
+    /* background-color: #ffffff; */ /* Déjà couvert par .card */
+    /* padding: 25px; */ /* Déjà couvert par .card */
+}
+
+/* Graph Column (Right) */
+.graph-column {
+    flex-grow: 1; /* Prend l'espace restant */
+    /* background-color: #ffffff; */ /* Déjà couvert par .card */
+    /* padding: 25px; */ /* Déjà couvert par .card */
+}
+
+/* Control Group for Label + Dropdown/Slider */
+.control-group {
+    margin-bottom: 20px; /* Espace entre chaque groupe de contrôle */
+}
+
+.control-group label {
+    font-weight: bold;
+    margin-bottom: 8px; /* Espace sous le label */
+    display: block; /* S'assure que le label prend toute la largeur */
+    color: #555;
+    font-size: 0.95em;
+}
+
+/* Dropdown specific styles */
+.custom-dropdown .Select-control {
+    border-color: #ccc !important;
+    box-shadow: none !important;
+    min-height: 40px; /* Hauteur minimale pour les dropdowns */
+}
+
+.custom-dropdown .Select-value-label {
+    color: #333 !important;
+    font-size: 0.9em;
+}
+
+.custom-dropdown .Select-menu-outer {
+    border-color: #ccc !important;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* Slider specific styles */
+.rc-slider {
+    margin-top: 10px; /* Espace au-dessus du slider */
+    margin-bottom: 5px; /* Espace en dessous du slider */
+}
+
+.rc-slider-track {
+    background-color: #0A2A5E !important;
+}
+
+.rc-slider-handle {
+    border-color: #0A2A5E !important;
+    background-color: #0A2A5E !important;
+}
+
+.rc-slider-mark-text {
+    font-size: 0.85em;
+    color: #666;
+}
+
+/* Reset Button */
+.reset-button {
+    background-color: #0A2A5E;
+    color: white;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 1em;
+    display: block; /* Prend toute la largeur si nécessaire */
+    width: 100%; /* S'adapte à la largeur du parent */
+    margin-top: 30px; /* Plus d'espace au-dessus */
+    transition: background-color 0.3s ease, transform 0.2s ease;
+}
+
+.reset-button:hover {
+    background-color: #071f3f;
+    transform: translateY(-2px); /* Petit effet de soulèvement */
+}
+
+/* Metric Output Styling */
+.metrics-card {
+    /* Styles de base déjà dans .card */
+    margin-top: 30px; /* Espace sous le graphique */
+    padding: 20px;
+}
+
+.metrics-card ul {
+    list-style-type: none;
+    padding: 0;
+    display: flex; /* Utilise flexbox pour aligner les métriques */
+    flex-wrap: wrap; /* Permet aux éléments de passer à la ligne */
+    gap: 15px 30px; /* Espacement entre les éléments */
+}
+
+.metrics-card li {
+    font-size: 1.05em;
+    color: #444;
+    min-width: 150px; /* Aide à la disposition des éléments */
+}
+
+/* Specific graph styling */
+#main-graph {
+    margin-top: 0; /* Supprime l'espace supérieur si le titre est déjà dedans */
+}
+
+/* Initial "Please upload a CSV" message */
+#main-interface > div {
+    text-align: center;
+    font-size: 1.2em;
+    color: #666;
+    margin-top: 50px;
+}
+
+/* Hamburger icon */
+.hamburger-icon {
+    font-size: 30px;
+    cursor: pointer;
+    position: fixed;
+    top: 20px;
+    left: 20px;
+    z-index: 1001;
+    background: none;
+    border: none;
+}
+
+/* Sidebar menu */
+.sidebar {
+    height: 100%;
+    width: 300px;
+    position: fixed;
+    top: 0;
+    left: -400px;
+    background-color: #f8f9fa;
+    padding: 20px;
+    transition: left 0.3s ease;
+    z-index: 1000;
+    overflow-y: auto;
+    box-shadow: 2px 0 5px rgba(0,0,0,0.3);
+}
+
+.sidebar.open {
+    left: 0;
+}
+
+.upload-box {
+    border: 2px dashed #aaa;
+    padding: 20px;
+    text-align: center;
+    background-color: #f9f9f9;
+    cursor: pointer;
+    transition: 0.3s;
+}
+
+.upload-box:hover {
+    background-color: #f0f0f0;
+    border-color: #555;
+}
