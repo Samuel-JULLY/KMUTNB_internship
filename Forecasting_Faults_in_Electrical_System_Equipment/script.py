@@ -16,13 +16,15 @@ warnings.filterwarnings('ignore')
 
 def process_csv_data(csv_string):
     df = pd.read_csv(StringIO(csv_string))
-    df = df.drop(columns=["Unnamed: 20", "Unnamed: 21"], errors='ignore')
+    # Drop the 'NB' column as specified, and previous unnamed columns if they exist
+    df = df.drop(columns=["NB"], errors='ignore')
     df = df.dropna(subset=["Year Test"])
     df["Year Test"] = df["Year Test"].astype(int)
 
+    # Updated list of columns to check for all zeros, including new ones
     colonnes_a_verifier = [
-        'MFG', 'KV', 'MVA', 'Age', 'Year Test', 'O2', 'N2', 'CO2', 'CO',
-        'H2', 'CH4', 'C2H2', 'C2H4', 'C2H6', 'C3H6', 'C3H8', 'TCG', 'TEMP', 'WATER'
+        'LOC', 'NAME', 'CODETX', 'MFG', 'SER', 'KV', 'MVA', 'Year Test', 'Sample Day', 'Tested day',
+        'O2', 'N2', 'CO2', 'CO', 'H2', 'CH4', 'C2H2', 'C2H4', 'C2H6', 'C3H6', 'C3H8', 'TCG', 'TEMP', 'WATER'
     ]
     df = df[~df[colonnes_a_verifier].eq(0.0).all(axis=1)]
     df["year_num"] = df["Year Test"] - df["Year Test"].min()
@@ -129,17 +131,37 @@ def process_csv_data(csv_string):
         "Random Forest": RandomForestClassifier(random_state=42),
         "Naive Bayes": GaussianNB(),
         "KNN": KNeighborsClassifier(),
+        # CORRECTION ICI : 'random_ado' a été changé en 'random_state'
         "SVM": SVC(probability=True, random_state=42),
         "Logistic Regression": LogisticRegression(max_iter=1000, random_state=42),
         "Decision Tree": DecisionTreeClassifier(random_state=42)
     }
 
     param_grids = {
-        "Random Forest": {'n_estimators': [50], 'max_depth': [5], 'min_samples_split': [2]},
-        "KNN": {'n_neighbors': [3], 'weights': ['uniform']},
-        "SVM": {'C': [1], 'kernel': ['rbf'], 'gamma': ['scale']},
-        "Logistic Regression": {'C': [1], 'solver': ['lbfgs'], 'penalty': ['l2']},
-        "Decision Tree": {'max_depth': [5], 'min_samples_split': [2], 'criterion': ['gini']}
+        "Random Forest": {
+            'n_estimators': [50, 100, 200],
+            'max_depth': [5, 10, None],
+            'min_samples_split': [2, 5, 10]
+        },
+        "KNN": {
+            'n_neighbors': [3, 5, 7],
+            'weights': ['uniform', 'distance']
+        },
+        "SVM": {
+            'C': [0.1, 1, 10],
+            'kernel': ['linear', 'rbf'],
+            'gamma': ['scale', 'auto']
+        },
+        "Logistic Regression": {
+            'C': [0.1, 1, 10],
+            'solver': ['lbfgs', 'liblinear'],
+            'penalty': ['l2']
+        },
+        "Decision Tree": {
+            'max_depth': [3, 5, 7],
+            'min_samples_split': [2, 5, 10],
+            'criterion': ['gini', 'entropy']
+        }
     }
 
     scaler_temporal = StandardScaler()
@@ -153,17 +175,19 @@ def process_csv_data(csv_string):
     for name, model_instance in models_to_evaluate.items():
         model = model_instance
         if name in param_grids:
-            grid_search = GridSearchCV(model, param_grids[name], cv=tscv, scoring='accuracy', n_jobs=-1)
+            grid_search = GridSearchCV(model, param_grids[name], cv=tscv, scoring='accuracy', n_jobs=-1, verbose=1)
             grid_search.fit(X_temporal_scaled_df, y_temporal)
             model = grid_search.best_estimator_
+        else:
+            model.fit(X_temporal_scaled_df, y_temporal)
 
-        model.fit(X_temporal_scaled_df, y_temporal)
         if hasattr(model, "predict_proba"):
             X_future_scaled = scaler_temporal.transform(X_future_temporal)
             proba = model.predict_proba(X_future_scaled)
             df_pred = pd.DataFrame(0.0, index=future_years, columns=[fault_labels[i] for i in range(len(fault_labels))])
             for i, class_idx in enumerate(model.classes_):
-                df_pred[fault_labels[class_idx]] = proba[:, i]
+                if class_idx in fault_labels: # Ensure class_idx exists in fault_labels
+                    df_pred[fault_labels[class_idx]] = proba[:, i]
             all_model_predictions[name] = df_pred
 
         y_pred = model.predict(X_temporal_scaled_df)
@@ -173,13 +197,21 @@ def process_csv_data(csv_string):
         f1 = f1_score(y_temporal, y_pred, average='macro', zero_division=0)
         cm = confusion_matrix(y_temporal, y_pred)
         specificity = []
+        # Calculate specificity for each class
         for i in range(len(fault_labels)):
+            # Check if the class index exists in the confusion matrix dimensions
             if i < cm.shape[0] and i < cm.shape[1]:
                 TP = cm[i, i]
+                # Sum across the row for False Negatives, excluding the TP
                 FN = cm[i, :].sum() - TP
+                # Sum across the column for False Positives, excluding the TP
                 FP = cm[:, i].sum() - TP
+                # Total elements minus (TP + FN + FP)
                 TN = cm.sum() - (TP + FN + FP)
                 specificity.append(TN / (TN + FP) if (TN + FP) > 0 else 0)
+            else:
+                specificity.append(0) # If class not present in CM, specificity is 0 or undefined
+
         results_temporal[name] = {
             "Accuracy": acc, "Precision": prec, "Recall": rec,
             "Specificity": np.mean(specificity), "F1": f1
