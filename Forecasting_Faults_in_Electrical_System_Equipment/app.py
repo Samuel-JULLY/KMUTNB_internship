@@ -5,11 +5,16 @@ import pandas as pd
 import json
 import base64
 import io
-# Assurez-vous que ce script existe et contient une fonction process_csv_data
-# et que le DataFrame retourné par process_csv_data contient une colonne 'CODETX'.
 from script import process_csv_data
 
-app = dash.Dash(__name__, suppress_callback_exceptions=True)
+# Ajoutez cette ligne pour Font Awesome
+external_stylesheets = ['https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css']
+
+# Modifiez l'initialisation de Dash pour inclure les feuilles de style externes
+# Pour changer le titre de la page de "Dash" à "4Cast", ajoutez l'argument `title="4Cast"`.
+# Pour l'icône de favori (favicon), placez votre fichier `favicon.ico` dans un dossier nommé `assets`
+# à la racine de votre projet Dash.
+app = dash.Dash(__name__, suppress_callback_exceptions=True, external_stylesheets=external_stylesheets, title="4 Cast")
 server = app.server
 
 # Fonction d'aide pour convertir un DataFrame en format sérialisable JSON
@@ -62,7 +67,7 @@ app.layout = html.Div([
             html.Label("Modèle"),
             dcc.Dropdown(id='model-select', options=[], value=None, clearable=False, className="custom-dropdown"),
         ], className="control-group"),
-        # NOUVEAU : Filtre par CODETX (remplace KV)
+        # Filtre par CODETX
         html.Div([
             html.Label("CODETX"),
             dcc.Dropdown(id='codetx-select', options=[], value="all", clearable=False, className="custom-dropdown"),
@@ -95,7 +100,27 @@ app.layout = html.Div([
         id="loading-graph",
         type="circle",
         children=html.Div(id='main-interface', children=html.Div("Veuillez charger un fichier CSV."))
-    )
+    ),
+
+    # --- Bouton Chatbot et Iframe Modale ---
+    html.Div(id='chatbot-button', className='chatbot-button', n_clicks=0, children=[
+        html.Div(className='chatbot-circle', children=[ # Ajout de children ici
+            html.I(className="fas fa-robot") # C'est ici que l'icône est ajoutée
+        ])
+    ]),
+    html.Div(id='chatbot-modal', className='chatbot-modal', children=[
+        html.Div(className='chatbot-modal-content', children=[
+            html.Button("X", id="chatbot-close-button", className="chatbot-close-button"),
+            html.Iframe(
+                src="https://valentin-obert-chatbot.hf.space/",
+                width="850",
+                height="450",
+                style={'border': 'none'} # Correction ici: utilisez 'style' pour la bordure
+            )
+        ])
+    ])
+    # --- FIN de la section Chatbot ---
+
 ])
 
 # Callback pour gérer le téléchargement de fichier et stocker les données traitées
@@ -125,8 +150,8 @@ def handle_uploaded_file(contents):
     Output('main-interface', 'children'),
     Output('model-select', 'options'),
     Output('model-select', 'value'),
-    Output('codetx-select', 'options'), # NOUVELLE SORTIE pour CODETX
-    Output('codetx-select', 'value'),   # NOUVELLE SORTIE pour CODETX
+    Output('codetx-select', 'options'),
+    Output('codetx-select', 'value'),
     Output('mfg-select', 'options'),
     Output('mfg-select', 'value'),
     Output('fault-select', 'options'),
@@ -206,8 +231,8 @@ def display_main_interface(data):
         # Options des listes déroulantes et valeurs initiales
         [{'label': m, 'value': m} for m in available_models],
         best_model,
-        codetx_options, # NOUVEAU : Retourne les options de CODETX
-        "all", # NOUVEAU : Définit la valeur initiale "all"
+        codetx_options,
+        "all",
         mfg_options,
         "all",
         fault_options,
@@ -226,7 +251,7 @@ def display_main_interface(data):
     Output('metrics-output', 'children'),
     Output('graph-title', 'children'),
     Input('model-select', 'value'),
-    Input('codetx-select', 'value'), # NOUVEL INPUT pour CODETX
+    Input('codetx-select', 'value'),
     Input('mfg-select', 'value'),
     Input('fault-select', 'value'),
     Input('year-slider', 'value'),
@@ -251,7 +276,7 @@ def update_graph(model_name, codetx_selected, mfg_selected, fault_selected, year
 
     # Réinitialiser les filtres si le bouton de réinitialisation a été cliqué
     if ctx_triggered == 'reset-button':
-        codetx_selected = 'all' # NOUVEAU : Réinitialiser le filtre de CODETX
+        codetx_selected = 'all'
         mfg_selected = 'all'
         fault_selected = 'all'
         year_range = [int(df['Year Test'].min()), int(df['Year Test'].max())]
@@ -260,7 +285,7 @@ def update_graph(model_name, codetx_selected, mfg_selected, fault_selected, year
     # Appliquer les filtres au DataFrame principal
     filtered_df = df[df['Year Test'].between(*year_range)]
     if codetx_selected != 'all':
-        filtered_df = filtered_df[filtered_df['CODETX'] == codetx_selected] # NOUVEAU : Filtrer par CODETX
+        filtered_df = filtered_df[filtered_df['CODETX'] == codetx_selected]
     if mfg_selected != 'all':
         filtered_df = filtered_df[filtered_df['MFG'] == mfg_selected]
 
@@ -291,7 +316,7 @@ def update_graph(model_name, codetx_selected, mfg_selected, fault_selected, year
         # Obtenir les proportions réelles pour la dernière année d'entraînement afin de connecter la prédiction en douceur
         last_year_filtered_data = df[df['Year Test'] == last_train_year]
         if codetx_selected != 'all':
-            last_year_filtered_data = last_year_filtered_data[last_year_filtered_data['CODETX'] == codetx_selected] # NOUVEAU : Filtrer par CODETX
+            last_year_filtered_data = last_year_filtered_data[last_year_filtered_data['CODETX'] == codetx_selected]
         if mfg_selected != 'all':
             last_year_filtered_data = last_year_filtered_data[last_year_filtered_data['MFG'] == mfg_selected]
 
@@ -339,7 +364,7 @@ def update_graph(model_name, codetx_selected, mfg_selected, fault_selected, year
     # Construire le titre du graphique de manière plus dynamique
     title_parts = [f"Prédiction des proportions de défaillances par {model_name}"]
     if codetx_selected != 'all':
-        title_parts.append(f"CODETX: {codetx_selected}") # NOUVEAU : Inclure CODETX dans le titre
+        title_parts.append(f"CODETX: {codetx_selected}")
     if mfg_selected != 'all':
         title_parts.append(f"MFG: {mfg_selected}")
     if fault_selected != 'all':
@@ -372,6 +397,27 @@ def toggle_sidebar(n_clicks, current_class):
         return 'sidebar' # Fermer la barre latérale
     else:
         return 'sidebar open' # Ouvrir la barre latérale
+
+# --- Callbacks pour le chatbot ---
+@app.callback(
+    Output('chatbot-modal', 'className'),
+    Input('chatbot-button', 'n_clicks'),
+    Input('chatbot-close-button', 'n_clicks'),
+    State('chatbot-modal', 'className'),
+    prevent_initial_call=True
+)
+def toggle_chatbot_modal(button_clicks, close_clicks, current_class):
+    ctx_triggered = ctx.triggered_id
+
+    # Si le bouton du chatbot est cliqué
+    if ctx_triggered == 'chatbot-button':
+        # Ajoute la classe 'chatbot-modal-open' pour afficher la modale
+        return 'chatbot-modal chatbot-modal-open'
+    # Si le bouton de fermeture est cliqué
+    elif ctx_triggered == 'chatbot-close-button':
+        # Retire la classe 'chatbot-modal-open' pour cacher la modale
+        return 'chatbot-modal'
+    return current_class # Garde l'état actuel si non déclenché
 
 if __name__ == '__main__':
     app.run(debug=True)
