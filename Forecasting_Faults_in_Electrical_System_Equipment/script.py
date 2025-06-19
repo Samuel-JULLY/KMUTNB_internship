@@ -206,7 +206,7 @@ def process_csv_data(csv_string):
         y_temporal = df["true_fault_index"].values
 
         # Générer des données futures pour la prédiction
-        future_years = np.arange(df["Year Test"].min(), 2031) # Prédiction jusqu'à 2030
+        future_years = np.arange(df["Year Test"].min(), df["Year Test"].max() + 10) # Prédiction jusqu'à 2030
         future_year_num = future_years - df["Year Test"].min()
         future_year_sin = np.sin(2 * np.pi * future_years / 12)
         future_year_cos = np.cos(2 * np.pi * future_years / 12)

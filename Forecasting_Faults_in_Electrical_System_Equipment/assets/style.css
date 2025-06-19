@@ -357,3 +357,23 @@ h4 {
     cursor: pointer;
 }
 /* --- FIN des styles du chatbot --- */
+
+/* Nouveaux styles pour les tableaux de prédiction */
+.prediction-tables-container {
+    margin-top: 40px;
+}
+
+.prediction-table-card {
+    margin-bottom: 30px;
+}
+
+.prediction-table-wrapper {
+    overflow-x: auto; /* Permet le défilement horizontal si le tableau est trop large */
+}
+
+/* Styles pour les cellules du tableau */
+.dash-spreadsheet-container .dash-cell-value {
+    white-space: nowrap; /* Empêche le retour à la ligne du texte dans les cellules */
+    overflow: hidden;
+    text-overflow: ellipsis; /* Ajoute des points de suspension si le texte est tronqué */
+}
