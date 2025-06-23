@@ -1,0 +1,6 @@
+gradio
+transformers
+requests
+torch
+accelerate
+feedparser
