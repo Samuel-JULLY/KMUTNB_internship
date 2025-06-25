@@ -89,27 +89,6 @@ h4 {
     text-decoration: underline;
 }
 
-/* Main Content Layout (Flexbox for columns) */
-.main-content-layout {
-    display: flex;
-    gap: 30px; /* Espace entre les colonnes */
-    align-items: flex-start; /* Aligne les éléments en haut */
-}
-
-/* Controls Column (Left) */
-.controls-column {
-    flex: 0 0 300px; /* Largeur fixe pour la colonne des contrôles */
-    /* background-color: #ffffff; */ /* Déjà couvert par .card */
-    /* padding: 25px; */ /* Déjà couvert par .card */
-}
-
-/* Graph Column (Right) */
-.graph-column {
-    flex-grow: 1; /* Prend l'espace restant */
-    /* background-color: #ffffff; */ /* Déjà couvert par .card */
-    /* padding: 25px; */ /* Déjà couvert par .card */
-}
-
 /* Control Group for Label + Dropdown/Slider */
 .control-group {
     margin-bottom: 20px; /* Espace entre chaque groupe de contrôle */
@@ -207,7 +186,7 @@ h4 {
 }
 
 /* Initial "Please upload a CSV" message */
-#main-interface > div {
+.welcome-message { /* Utilisez la classe pour être plus générique si besoin */
     text-align: center;
     font-size: 1.2em;
     color: #666;
@@ -224,6 +203,7 @@ h4 {
     z-index: 1001;
     background: none;
     border: none;
+    color: #0A2A5E; /* Couleur de l'icône hamburger */
 }
 
 /* Sidebar menu */
@@ -232,7 +212,7 @@ h4 {
     width: 300px;
     position: fixed;
     top: 0;
-    left: -400px;
+    left: -400px; /* Caché par défaut */
     background-color: #f8f9fa;
     padding: 20px;
     transition: left 0.3s ease;
@@ -242,29 +222,23 @@ h4 {
 }
 
 .sidebar.open {
-    left: 0;
+    left: 0; /* Visible */
 }
 
-.upload-box {
-    border: 2px dashed #aaa;
-    padding: 20px;
-    text-align: center;
-    background-color: #f9f9f9;
-    cursor: pointer;
-    transition: 0.3s;
-}
-
-.upload-box:hover {
-    background-color: #f0f0f0;
-    border-color: #555;
-}
-
-/* --- Styles pour le chatbot --- */
-.chatbot-button {
+/* Styles pour le conteneur des boutons flottants */
+#floating-buttons-container {
     position: fixed;
-    bottom: 30px;
-    right: 30px;
-    z-index: 1000;
+    top: 20px; /* Position en haut de l'écran */
+    right: 20px; /* Position à droite de l'écran */
+    z-index: 1000; /* Assure qu'ils sont au-dessus du contenu */
+    display: flex; /* Utilise flexbox pour l'alignement */
+    flex-direction: row; /* Alignement horizontal */
+    align-items: center; /* Aligner verticalement au centre */
+    gap: 15px; /* Espacement entre les boutons */
+}
+
+/* Styles de base pour tous les boutons flottants */
+.floating-button {
     cursor: pointer;
     background: none;
     border: none;
@@ -272,47 +246,65 @@ h4 {
     display: flex;
     justify-content: center;
     align-items: center;
-    width: 60px; /* Taille du bouton */
-    height: 60px;
+    width: 50px; /* Taille des boutons */
+    height: 50px;
     border-radius: 50%;
     box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
     transition: transform 0.3s ease, box-shadow 0.3s ease;
 }
 
-.chatbot-button:hover {
+.floating-button:hover {
     transform: scale(1.1);
     box-shadow: 0 6px 15px rgba(0, 0, 0, 0.3);
 }
 
-.chatbot-circle {
-    width: 100%;
-    height: 100%;
-    background-color: #4CAF50; /* Vert vif */
-    border-radius: 50%;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    /* Styles pour l'icône à l'intérieur du cercle */
-    font-size: 28px; /* Taille de l'icône */
-    color: white; /* Couleur de l'icône */
+/* Styles spécifiques pour chaque bouton flottant */
+/* L'ordre dans app.py détermine l'ordre visuel en mode 'row' */
+/* Pour avoir Info, Chatbot, Home de gauche à droite,
+   on doit les déclarer dans cet ordre dans app.py (ce qui est déjà le cas).
+   Ici, on ne fait que styliser leurs couleurs. */
+
+.info-button {
+    background-color: #007bff; /* Bleu d'information */
 }
+
+.info-button .fas.fa-info {
+    color: white;
+    font-size: 1.5em;
+}
+
+.chatbot-button {
+    background-color: #4CAF50; /* Vert vif */
+}
+
+.chatbot-button .fas.fa-robot {
+    color: white;
+    font-size: 1.5em;
+}
+
+.home-button {
+    background-color: #0A2A5E; /* Bleu foncé */
+}
+
+.home-button .fas.fa-home {
+    color: white;
+    font-size: 1.5em;
+}
+
 
 /* Modal pour l'iframe du chatbot */
 .chatbot-modal {
-    /* Caché par défaut */
-    display: none;
+    display: none; /* Caché par défaut */
     position: fixed;
-    z-index: 10001;
+    z-index: 10001; /* Au-dessus de tout */
     left: 0;
     top: 0;
     width: 100%;
     height: 100%;
     overflow: auto;
     background-color: rgba(0,0,0,0.4);
-    /* NE PAS METTRE display: flex; ici ! */
 }
 
-/* Cette classe sera ajoutée par le callback Dash pour ouvrir la modale */
 .chatbot-modal.chatbot-modal-open {
     display: flex; /* Active le flexbox pour centrer le contenu quand la modale est ouverte */
     justify-content: center;
@@ -356,9 +348,8 @@ h4 {
     text-decoration: none;
     cursor: pointer;
 }
-/* --- FIN des styles du chatbot --- */
 
-/* Nouveaux styles pour les tableaux de prédiction */
+/* Styles pour les tableaux de prédiction */
 .prediction-tables-container {
     margin-top: 40px;
 }
@@ -376,4 +367,131 @@ h4 {
     white-space: nowrap; /* Empêche le retour à la ligne du texte dans les cellules */
     overflow: hidden;
     text-overflow: ellipsis; /* Ajoute des points de suspension si le texte est tronqué */
+}
+
+/* Styles pour la modale d'information (popup) */
+.info-modal {
+    display: none; /* Caché par défaut */
+    position: fixed;
+    z-index: 2000; /* Assure qu'elle est au-dessus de tout le reste */
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    overflow: auto; /* Permet le défilement si le contenu est trop grand */
+    background-color: rgba(0, 0, 0, 0.6); /* Fond semi-transparent */
+}
+
+.info-modal.info-modal-open {
+    display: flex; /* Affiche la modale lorsque la classe est présente */
+    justify-content: center; /* Centrer horizontalement */
+    align-items: center; /* Centrer verticalement */
+}
+
+.info-modal-content {
+    background-color: #fefefe;
+    margin: auto; /* Centre la boîte modale */
+    padding: 30px;
+    border: 1px solid #888;
+    width: 80%; /* Largeur de la modale */
+    max-width: 700px; /* Largeur maximale pour ne pas être trop large sur grand écran */
+    border-radius: 10px;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+    position: relative; /* Pour positionner le bouton de fermeture */
+    animation: fadeIn 0.3s ease-out; /* Animation d'apparition */
+    max-height: 90vh; /* Limite la hauteur de la modale à 90% de la hauteur de la fenêtre */
+    overflow-y: auto; /* Ajoute une barre de défilement si le contenu dépasse */
+}
+
+/* Animation simple pour l'apparition de la modale */
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* Bouton de fermeture de la modale */
+.info-close-button {
+    color: #aaa;
+    position: absolute;
+    top: 10px;
+    right: 15px;
+    font-size: 28px;
+    font-weight: bold;
+    cursor: pointer;
+    background: none;
+    border: none;
+    padding: 0;
+    line-height: 1;
+}
+
+.info-close-button:hover,
+.info-close-button:focus {
+    color: #000;
+    text-decoration: none;
+    cursor: pointer;
+}
+
+/* Styles pour le contenu de la popup */
+.info-title {
+    color: #0A2A5E; /* Couleur de titre principale */
+    font-size: 2em;
+    margin-bottom: 20px;
+    border-bottom: 2px solid #eee;
+    padding-bottom: 10px;
+}
+
+.info-subtitle {
+    color: #333;
+    font-size: 1.5em;
+    margin-top: 25px;
+    margin-bottom: 15px;
+}
+
+.info-text {
+    color: #555;
+    font-size: 1.1em;
+    line-height: 1.6;
+    margin-bottom: 10px;
+}
+
+.info-footer {
+    border-top: 1px solid #eee;
+    margin-top: 30px;
+    padding-top: 15px;
+    text-align: center;
+    color: #888;
+}
+
+.info-footer-text {
+    font-size: 0.9em;
+    margin: 5px 0;
+}
+
+/* Média Queries pour la réactivité */
+@media (max-width: 768px) {
+    .info-modal-content {
+        width: 95%;
+        padding: 20px;
+    }
+    .floating-button {
+        width: 45px;
+        height: 45px;
+    }
+    .floating-button .fas {
+        font-size: 1.3em;
+    }
+    .info-title {
+        font-size: 1.8em;
+    }
+    .info-subtitle {
+        font-size: 1.3em;
+    }
+    .info-text {
+        font-size: 1em;
+    }
+    #floating-buttons-container {
+        top: 10px; /* Slightly adjust for smaller screens */
+        right: 10px;
+        gap: 10px; /* Reduce gap on smaller screens */
+    }
 }

@@ -14,8 +14,8 @@ import warnings
 
 warnings.filterwarnings('ignore')
 
-# Définir les colonnes attendues pour la validation du fichier CSV
-# Les colonnes 'Sample Day' et 'Tested day' ont été retirées de cette liste
+# Define expected columns for CSV file validation
+# 'Sample Day' and 'Tested day' columns have been removed from this list
 EXPECTED_COLUMNS = [
     'LOC', 'NAME', 'CODETX', 'MFG', 'SER', 'KV', 'MVA', 'Year Test',
     'O2', 'N2', 'CO2', 'CO', 'H2', 'CH4', 'C2H2', 'C2H4', 'C2H6', 'C3H6', 'C3H8', 'TCG', 'TEMP', 'WATER'
@@ -23,14 +23,14 @@ EXPECTED_COLUMNS = [
 
 def process_csv_data(csv_string):
     """
-    Traite une chaîne CSV, valide les colonnes, gère les colonnes supplémentaires
-    et effectue l'analyse des données.
-    Retourne un dictionnaire de données traitées ou un dictionnaire d'erreur.
+    Processes a CSV string, validates columns, handles extra columns,
+    and performs data analysis.
+    Returns a dictionary of processed data or an error dictionary.
     """
     try:
         df = pd.read_csv(StringIO(csv_string))
 
-        # --- Validation et gestion des colonnes ---
+        # --- Column Validation and Handling ---
         current_columns = set(df.columns)
         expected_columns_set = set(EXPECTED_COLUMNS)
 
@@ -39,51 +39,51 @@ def process_csv_data(csv_string):
 
         error_messages = []
         if missing_columns:
-            error_messages.append(f"Colonnes manquantes : {', '.join(missing_columns)}")
+            error_messages.append(f"Missing columns: {', '.join(missing_columns)}")
         
-        # Si des colonnes manquantes sont détectées, retourner une erreur
+        # If missing columns are detected, return an error
         if error_messages:
-            return {"error": True, "message": "Erreur de format de fichier : " + " ; ".join(error_messages)}
+            return {"error": True, "message": "File format error: " + " ; ".join(error_messages)}
 
-        # Supprimer les colonnes supplémentaires du DataFrame
+        # Remove extra columns from the DataFrame
         if extra_columns:
             df = df.drop(columns=extra_columns, errors='ignore')
-            # Optionnel : vous pourriez ajouter un avertissement ici si vous vouliez loguer la suppression
-            # print(f"Colonnes supplémentaires supprimées : {', '.join(extra_columns)}")
+            # Optional: you could add a warning here if you wanted to log the deletion
+            # print(f"Extra columns removed: {', '.join(extra_columns)}")
 
-        # S'assurer que 'Year Test' n'a pas de valeurs manquantes et est un entier
+        # Ensure 'Year Test' has no missing values and is an integer
         df = df.dropna(subset=["Year Test"])
         df["Year Test"] = df["Year Test"].astype(int)
 
-        # Liste des colonnes à vérifier pour toutes les zéros (ajustée à la nouvelle liste)
-        colonnes_a_verifier_zeros = EXPECTED_COLUMNS # Utilisez directement la liste attendue après la suppression des extras
+        # List of columns to check for all zeros (adjusted to the new list)
+        columns_to_check_zeros = EXPECTED_COLUMNS # Use the expected list directly after extra column removal
         
-        # Filtrer les lignes où toutes les colonnes à vérifier sont 0.0
-        # S'assurer que le DataFrame contient toutes les colonnes avant de filtrer
-        cols_to_check_present = [col for col in colonnes_a_verifier_zeros if col in df.columns]
+        # Filter out rows where all checked columns are 0.0
+        # Ensure that the DataFrame contains all columns before filtering
+        cols_to_check_present = [col for col in columns_to_check_zeros if col in df.columns]
         if cols_to_check_present:
             df = df[~df[cols_to_check_present].eq(0.0).all(axis=1)]
         
-        # Calculer 'year_num' à partir de 'Year Test'
+        # Calculate 'year_num' from 'Year Test'
         df["year_num"] = df["Year Test"] - df["Year Test"].min()
 
-        # Calculer les ratios de gaz
+        # Calculate gas ratios
         for ratio, num, denom in zip(["R1", "R2", "R3", "R4", "R5"], ["CH4", "C2H2", "C2H2", "C2H6", "C2H4"], ["H2", "C2H4", "CH4", "C2H2", "C2H6"]):
-            # Utiliser .get pour gérer les colonnes qui pourraient être manquantes après la suppression des extras
-            # Bien que la validation initiale devrait garantir leur présence, c'est une bonne pratique
+            # Use .get to handle columns that might be missing after extra column removal
+            # Although initial validation should ensure their presence, this is good practice
             if num in df.columns and denom in df.columns:
                 df[ratio] = df[num] / df[denom].replace(0, np.nan)
             else:
-                df[ratio] = np.nan # Assigner NaN si une colonne est manquante
+                df[ratio] = np.nan # Assign NaN if a column is missing
         
         if "CH4" in df.columns and "C2H2" in df.columns and "C2H4" in df.columns:
             df["Duval_Total"] = df[["CH4", "C2H2", "C2H4"]].sum(axis=1).replace(0, np.nan)
         else:
             df["Duval_Total"] = np.nan
 
-        # Fonctions de classification des défaillances
+        # Failure classification functions
         def classify_IRM(row):
-            # Vérifier la présence des colonnes avant d'y accéder
+            # Check for column presence before accessing them
             if "R1" not in row or "R2" not in row or "R5" not in row: return "Uncertain"
             R1, R2, R5 = row["R1"], row["R2"], row["R5"]
             if pd.isna(R1) or pd.isna(R2) or pd.isna(R5): return "Uncertain"
@@ -147,29 +147,29 @@ def process_csv_data(csv_string):
             elif pct_c2h6 > 10 and pct_ch4 > 15: return "T3"
             else: return "Uncertain"
 
-        # Appliquer les fonctions de classification
+        # Apply classification functions
         for name, func in zip(["IRM", "DRM", "RRM", "DTM", "DPM"], [classify_IRM, classify_DRM, classify_RRM, classify_DTM, classify_DPM]):
             df[f"{name}_fault"] = df.apply(func, axis=1)
 
-        # Calculer les pourcentages de gaz et les coordonnées Cx, Cy
+        # Calculate gas percentages and Cx, Cy coordinates
         gases = ["CH4", "C2H2", "C2H4", "H2", "C2H6"]
         
-        # S'assurer que toutes les colonnes de gaz sont présentes avant de faire la somme
+        # Ensure all gas columns are present before summing
         gases_present = [g for g in gases if g in df.columns]
         if gases_present:
             df["Total_DP"] = df[gases_present].sum(axis=1)
-            df = df[df["Total_DP"] > 0] # Filtrer les lignes où Total_DP est zéro
+            df = df[df["Total_DP"] > 0] # Filter rows where Total_DP is zero
             for g in gases_present:
                 df[f"%{g}"] = 100 * df[g] / df["Total_DP"]
-            # Assigner 0 aux pourcentages des gaz non présents pour éviter KeyError
+            # Assign 0 to percentages of non-present gases to avoid KeyError
             for g in [g for g in gases if g not in gases_present]:
                 df[f"%{g}"] = 0.0
         else:
-            df["Total_DP"] = 0.0 # Pas de gaz, pas de total
+            df["Total_DP"] = 0.0 # No gases, no total
             for g in gases:
                 df[f"%{g}"] = 0.0
 
-        # Calculer Cx et Cy uniquement si les colonnes nécessaires existent
+        # Calculate Cx and Cy only if necessary columns exist
         if all(f"%{g}" in df.columns for g in ["CH4", "C2H6", "C2H2", "C2H4"]):
             df["Cx"] = (df["%CH4"] + 0.5 * df["%C2H6"] - 0.5 * df["%C2H2"] - df["%C2H4"]) / 100
             df["Cy"] = (0.866 * df["%C2H6"] + 0.866 * df["%C2H2"]) / 100
@@ -178,45 +178,45 @@ def process_csv_data(csv_string):
             df["Cy"] = np.nan
 
 
-        # Encoder les colonnes de méthode de défaillance
+        # Encode fault method columns
         method_columns = ["IRM_fault", "DRM_fault", "RRM_fault", "DTM_fault", "DPM_fault"]
         for col in method_columns:
             if col in df.columns:
                 df[f"{col}_enc"] = LabelEncoder().fit_transform(df[col])
             else:
-                df[f"{col}_enc"] = -1 # ou une autre valeur par défaut pour indiquer l'absence
+                df[f"{col}_enc"] = -1 # or another default value to indicate absence
 
-        # Déterminer la "vraie" défaillance basée sur le mode des méthodes
+        # Determine the "true" fault based on the mode of the methods
         method_columns_present = [col for col in method_columns if col in df.columns]
         if method_columns_present:
             df["true_fault"] = df[method_columns_present].mode(axis=1)[0]
         else:
-            df["true_fault"] = "Uncertain" # Ou une valeur par défaut si aucune colonne de méthode n'est présente
+            df["true_fault"] = "Uncertain" # Or a default value if no method columns are present
 
         le_target = LabelEncoder()
         df["true_fault_index"] = le_target.fit_transform(df["true_fault"])
         fault_labels = {i: c for i, c in enumerate(le_target.classes_)}
 
-        # Ajouter des caractéristiques temporelles
+        # Add temporal features
         df["year_sin"] = np.sin(2 * np.pi * df["Year Test"] / 12)
         df["year_cos"] = np.cos(2 * np.pi * df["Year Test"] / 12)
 
-        # Préparer les données pour l'entraînement du modèle temporel
+        # Prepare data for temporal model training
         X_temporal = df[["year_num", "year_sin", "year_cos"]]
         y_temporal = df["true_fault_index"].values
 
-        # Générer des données futures pour la prédiction
-        future_years = np.arange(df["Year Test"].min(), df["Year Test"].max() + 10) # Prédiction jusqu'à 2030
+        # Generate future data for prediction
+        future_years = np.arange(df["Year Test"].min(), df["Year Test"].max() + 10) # Prediction up to 2030
         future_year_num = future_years - df["Year Test"].min()
         future_year_sin = np.sin(2 * np.pi * future_years / 12)
         future_year_cos = np.cos(2 * np.pi * future_years / 12)
         X_future_temporal = pd.DataFrame({"year_num": future_year_num, "year_sin": future_year_sin, "year_cos": future_year_cos})
 
-        # Calculer les proportions réelles de défaillances par année
+        # Calculate actual fault proportions by year
         real_proportions_by_year = df.groupby("Year Test")["true_fault_index"].value_counts(normalize=True).unstack(fill_value=0)
         real_proportions_by_year.columns = [fault_labels[idx] for idx in real_proportions_by_year.columns]
 
-        # Définir les modèles à évaluer
+        # Define models to evaluate
         models_to_evaluate = {
             "Random Forest": RandomForestClassifier(random_state=42),
             "Naive Bayes": GaussianNB(),
@@ -226,7 +226,7 @@ def process_csv_data(csv_string):
             "Decision Tree": DecisionTreeClassifier(random_state=42)
         }
 
-        # Définir les grilles de paramètres pour GridSearchCV
+        # Define parameter grids for GridSearchCV
         param_grids = {
             "Random Forest": {
                 'n_estimators': [50, 100, 200],
@@ -254,17 +254,17 @@ def process_csv_data(csv_string):
             }
         }
 
-        # Normaliser les caractéristiques temporelles
+        # Scale temporal features
         scaler_temporal = StandardScaler()
         X_temporal_scaled = scaler_temporal.fit_transform(X_temporal)
         X_temporal_scaled_df = pd.DataFrame(X_temporal_scaled, columns=X_temporal.columns, index=X_temporal.index)
 
-        # Configurer TimeSeriesSplit pour la validation croisée
+        # Configure TimeSeriesSplit for cross-validation
         tscv = TimeSeriesSplit(n_splits=5)
         all_model_predictions = {}
         results_temporal = {}
 
-        # Entraîner et évaluer les modèles
+        # Train and evaluate models
         for name, model_instance in models_to_evaluate.items():
             model = model_instance
             if name in param_grids:
@@ -274,17 +274,17 @@ def process_csv_data(csv_string):
             else:
                 model.fit(X_temporal_scaled_df, y_temporal)
 
-            # Faire des prédictions de probabilité pour les années futures
+            # Make probability predictions for future years
             if hasattr(model, "predict_proba"):
                 X_future_scaled = scaler_temporal.transform(X_future_temporal)
                 proba = model.predict_proba(X_future_scaled)
                 df_pred = pd.DataFrame(0.0, index=future_years, columns=[fault_labels[i] for i in range(len(fault_labels))])
                 for i, class_idx in enumerate(model.classes_):
-                    if class_idx in fault_labels: # S'assurer que class_idx existe dans fault_labels
+                    if class_idx in fault_labels: # Ensure class_idx exists in fault_labels
                         df_pred[fault_labels[class_idx]] = proba[:, i]
                 all_model_predictions[name] = df_pred
 
-            # Calculer les métriques de performance
+            # Calculate performance metrics
             y_pred = model.predict(X_temporal_scaled_df)
             acc = accuracy_score(y_temporal, y_pred)
             prec = precision_score(y_temporal, y_pred, average='macro', zero_division=0)
@@ -307,14 +307,14 @@ def process_csv_data(csv_string):
                 "Specificity": np.mean(specificity), "F1": f1
             }
 
-        # Créer un DataFrame des métriques et identifier le meilleur modèle
+        # Create a DataFrame of metrics and identify the best model
         metrics_df_temporal = pd.DataFrame(results_temporal).T.round(3)
         metrics_df_temporal.sort_values("Accuracy", ascending=False, inplace=True)
         best_temporal_model_name = metrics_df_temporal.index[0] if not metrics_df_temporal.empty else list(models_to_evaluate.keys())[0]
 
-        # Retourner toutes les données traitées et les résultats
+        # Return all processed data and results
         return {
-            "error": False, # Indique qu'il n'y a pas d'erreur
+            "error": False, # Indicates no error
             "df": df,
             "real_proportions_by_year": real_proportions_by_year,
             "all_model_predictions": all_model_predictions,
@@ -323,7 +323,6 @@ def process_csv_data(csv_string):
             "best_temporal_model_name": best_temporal_model_name
         }
     except Exception as e:
-        # Gérer toute autre erreur inattendue lors du traitement des données
-        print(f"Erreur lors du traitement des données : {e}")
-        return {"error": True, "message": f"Erreur lors du traitement des données : {str(e)}"}
-
+        # Handle any other unexpected error during data processing
+        print(f"Error during data processing: {e}")
+        return {"error": True, "message": f"Error during data processing: {str(e)}"}
