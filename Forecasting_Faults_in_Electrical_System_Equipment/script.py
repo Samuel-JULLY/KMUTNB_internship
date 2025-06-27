@@ -1,30 +1,32 @@
 import pandas as pd
 import numpy as np
 from sklearn.preprocessing import LabelEncoder, StandardScaler
-from sklearn.ensemble import RandomForestClassifier
+from sklearn.ensemble import RandomForestRegressor, RandomForestClassifier
 from sklearn.model_selection import cross_val_score, StratifiedKFold, TimeSeriesSplit, GridSearchCV
-from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, confusion_matrix
+from sklearn.metrics import (
+    accuracy_score, precision_score, recall_score, f1_score, confusion_matrix,
+    r2_score, mean_absolute_error, mean_squared_error
+)
 from sklearn.naive_bayes import GaussianNB
-from sklearn.neighbors import KNeighborsClassifier
-from sklearn.svm import SVC
-from sklearn.linear_model import LogisticRegression
-from sklearn.tree import DecisionTreeClassifier
+from sklearn.neighbors import KNeighborsClassifier, KNeighborsRegressor
+from sklearn.svm import SVC, SVR
+from sklearn.linear_model import LogisticRegression, LinearRegression
+from sklearn.tree import DecisionTreeClassifier, DecisionTreeRegressor
 from io import StringIO
 import warnings
 
 warnings.filterwarnings('ignore')
 
-# Define expected columns for CSV file validation
-# 'Sample Day' and 'Tested day' columns have been removed from this list
-EXPECTED_COLUMNS = [
+# Define expected columns for CSV file validation for TGA
+EXPECTED_COLUMNS_TGA = [
     'LOC', 'NAME', 'CODETX', 'MFG', 'SER', 'KV', 'MVA', 'Year Test',
     'O2', 'N2', 'CO2', 'CO', 'H2', 'CH4', 'C2H2', 'C2H4', 'C2H6', 'C3H6', 'C3H8', 'TCG', 'TEMP', 'WATER'
 ]
 
-def process_csv_data(csv_string):
+def process_csv_data_temporal(csv_string):
     """
-    Processes a CSV string, validates columns, handles extra columns,
-    and performs data analysis.
+    Processes a CSV string for TGA analysis, validates columns, handles extra columns,
+    and performs DGA data analysis and temporal modeling.
     Returns a dictionary of processed data or an error dictionary.
     """
     try:
@@ -32,11 +34,10 @@ def process_csv_data(csv_string):
 
         # --- Column Validation and Handling ---
         current_columns = set(df.columns)
-        expected_columns_set = set(EXPECTED_COLUMNS)
+        expected_columns_set = set(EXPECTED_COLUMNS_TGA)
 
         missing_columns = list(expected_columns_set - current_columns)
-        extra_columns = list(current_columns - expected_columns_set)
-
+        
         error_messages = []
         if missing_columns:
             error_messages.append(f"Missing columns: {', '.join(missing_columns)}")
@@ -46,21 +47,16 @@ def process_csv_data(csv_string):
             return {"error": True, "message": "File format error: " + " ; ".join(error_messages)}
 
         # Remove extra columns from the DataFrame
+        extra_columns = list(current_columns - expected_columns_set)
         if extra_columns:
             df = df.drop(columns=extra_columns, errors='ignore')
-            # Optional: you could add a warning here if you wanted to log the deletion
-            # print(f"Extra columns removed: {', '.join(extra_columns)}")
 
         # Ensure 'Year Test' has no missing values and is an integer
         df = df.dropna(subset=["Year Test"])
         df["Year Test"] = df["Year Test"].astype(int)
 
-        # List of columns to check for all zeros (adjusted to the new list)
-        columns_to_check_zeros = EXPECTED_COLUMNS # Use the expected list directly after extra column removal
-        
         # Filter out rows where all checked columns are 0.0
-        # Ensure that the DataFrame contains all columns before filtering
-        cols_to_check_present = [col for col in columns_to_check_zeros if col in df.columns]
+        cols_to_check_present = [col for col in EXPECTED_COLUMNS_TGA if col in df.columns]
         if cols_to_check_present:
             df = df[~df[cols_to_check_present].eq(0.0).all(axis=1)]
         
@@ -69,12 +65,10 @@ def process_csv_data(csv_string):
 
         # Calculate gas ratios
         for ratio, num, denom in zip(["R1", "R2", "R3", "R4", "R5"], ["CH4", "C2H2", "C2H2", "C2H6", "C2H4"], ["H2", "C2H4", "CH4", "C2H2", "C2H6"]):
-            # Use .get to handle columns that might be missing after extra column removal
-            # Although initial validation should ensure their presence, this is good practice
             if num in df.columns and denom in df.columns:
                 df[ratio] = df[num] / df[denom].replace(0, np.nan)
             else:
-                df[ratio] = np.nan # Assign NaN if a column is missing
+                df[ratio] = np.nan
         
         if "CH4" in df.columns and "C2H2" in df.columns and "C2H4" in df.columns:
             df["Duval_Total"] = df[["CH4", "C2H2", "C2H4"]].sum(axis=1).replace(0, np.nan)
@@ -83,7 +77,6 @@ def process_csv_data(csv_string):
 
         # Failure classification functions
         def classify_IRM(row):
-            # Check for column presence before accessing them
             if "R1" not in row or "R2" not in row or "R5" not in row: return "Uncertain"
             R1, R2, R5 = row["R1"], row["R2"], row["R5"]
             if pd.isna(R1) or pd.isna(R2) or pd.isna(R5): return "Uncertain"
@@ -154,22 +147,19 @@ def process_csv_data(csv_string):
         # Calculate gas percentages and Cx, Cy coordinates
         gases = ["CH4", "C2H2", "C2H4", "H2", "C2H6"]
         
-        # Ensure all gas columns are present before summing
         gases_present = [g for g in gases if g in df.columns]
         if gases_present:
             df["Total_DP"] = df[gases_present].sum(axis=1)
-            df = df[df["Total_DP"] > 0] # Filter rows where Total_DP is zero
+            df = df[df["Total_DP"] > 0]
             for g in gases_present:
                 df[f"%{g}"] = 100 * df[g] / df["Total_DP"]
-            # Assign 0 to percentages of non-present gases to avoid KeyError
             for g in [g for g in gases if g not in gases_present]:
                 df[f"%{g}"] = 0.0
         else:
-            df["Total_DP"] = 0.0 # No gases, no total
+            df["Total_DP"] = 0.0
             for g in gases:
                 df[f"%{g}"] = 0.0
 
-        # Calculate Cx and Cy only if necessary columns exist
         if all(f"%{g}" in df.columns for g in ["CH4", "C2H6", "C2H2", "C2H4"]):
             df["Cx"] = (df["%CH4"] + 0.5 * df["%C2H6"] - 0.5 * df["%C2H2"] - df["%C2H4"]) / 100
             df["Cy"] = (0.866 * df["%C2H6"] + 0.866 * df["%C2H2"]) / 100
@@ -184,14 +174,14 @@ def process_csv_data(csv_string):
             if col in df.columns:
                 df[f"{col}_enc"] = LabelEncoder().fit_transform(df[col])
             else:
-                df[f"{col}_enc"] = -1 # or another default value to indicate absence
+                df[f"{col}_enc"] = -1
 
         # Determine the "true" fault based on the mode of the methods
         method_columns_present = [col for col in method_columns if col in df.columns]
         if method_columns_present:
             df["true_fault"] = df[method_columns_present].mode(axis=1)[0]
         else:
-            df["true_fault"] = "Uncertain" # Or a default value if no method columns are present
+            df["true_fault"] = "Uncertain"
 
         le_target = LabelEncoder()
         df["true_fault_index"] = le_target.fit_transform(df["true_fault"])
@@ -206,7 +196,7 @@ def process_csv_data(csv_string):
         y_temporal = df["true_fault_index"].values
 
         # Generate future data for prediction
-        future_years = np.arange(df["Year Test"].min(), df["Year Test"].max() + 10) # Prediction up to 2030
+        future_years = np.arange(df["Year Test"].min(), df["Year Test"].max() + 10)
         future_year_num = future_years - df["Year Test"].min()
         future_year_sin = np.sin(2 * np.pi * future_years / 12)
         future_year_cos = np.cos(2 * np.pi * future_years / 12)
@@ -268,7 +258,7 @@ def process_csv_data(csv_string):
         for name, model_instance in models_to_evaluate.items():
             model = model_instance
             if name in param_grids:
-                grid_search = GridSearchCV(model, param_grids[name], cv=tscv, scoring='accuracy', n_jobs=-1, verbose=1)
+                grid_search = GridSearchCV(model, param_grids[name], cv=tscv, scoring='accuracy', n_jobs=-1, verbose=0) # Set verbose to 0
                 grid_search.fit(X_temporal_scaled_df, y_temporal)
                 model = grid_search.best_estimator_
             else:
@@ -280,7 +270,7 @@ def process_csv_data(csv_string):
                 proba = model.predict_proba(X_future_scaled)
                 df_pred = pd.DataFrame(0.0, index=future_years, columns=[fault_labels[i] for i in range(len(fault_labels))])
                 for i, class_idx in enumerate(model.classes_):
-                    if class_idx in fault_labels: # Ensure class_idx exists in fault_labels
+                    if class_idx in fault_labels:
                         df_pred[fault_labels[class_idx]] = proba[:, i]
                 all_model_predictions[name] = df_pred
 
@@ -314,7 +304,7 @@ def process_csv_data(csv_string):
 
         # Return all processed data and results
         return {
-            "error": False, # Indicates no error
+            "error": False,
             "df": df,
             "real_proportions_by_year": real_proportions_by_year,
             "all_model_predictions": all_model_predictions,
@@ -323,6 +313,130 @@ def process_csv_data(csv_string):
             "best_temporal_model_name": best_temporal_model_name
         }
     except Exception as e:
-        # Handle any other unexpected error during data processing
-        print(f"Error during data processing: {e}")
-        return {"error": True, "message": f"Error during data processing: {str(e)}"}
+        print(f"Error during TGA data processing: {e}")
+        return {"error": True, "message": f"Error during TGA data processing: {str(e)}"}
+    
+    
+
+def process_custom_data(df_json_string, xaxis_col, yaxis_col):
+    """
+    Processes a custom CSV string for general temporal prediction.
+    It trains regression models to predict yaxis_col based on xaxis_col.
+    Returns a dictionary of processed data and prediction results.
+    """
+    try:
+        df = pd.read_json(StringIO(df_json_string), orient='split')
+
+        # Ensure selected columns are numeric and handle missing values
+        df[xaxis_col] = pd.to_numeric(df[xaxis_col], errors='coerce')
+        df[yaxis_col] = pd.to_numeric(df[yaxis_col], errors='coerce')
+        df.dropna(subset=[xaxis_col, yaxis_col], inplace=True)
+
+        if df.empty:
+            return {"error": True, "message": "No valid data after cleaning for selected columns."}
+
+        # Prepare data for modeling
+        X = df[[xaxis_col]]
+        y = df[yaxis_col]
+
+        # Define regression models to evaluate
+        models_to_evaluate = {
+            "Linear Regression": LinearRegression(),
+            "Random Forest": RandomForestRegressor(random_state=42),
+            "Decision Tree": DecisionTreeRegressor(random_state=42),
+            "KNN": KNeighborsRegressor(),
+            "SVM": SVR()
+        }
+
+        # Define parameter grids for GridSearchCV for regression models
+        param_grids = {
+            "Random Forest": {
+                'n_estimators': [50, 100],
+                'max_depth': [5, 10, None],
+            },
+            "KNN": {
+                'n_neighbors': [3, 5, 7],
+                'weights': ['uniform', 'distance']
+            },
+            "SVM": {
+                'C': [0.1, 1, 10],
+                'kernel': ['linear', 'rbf'],
+                'gamma': ['scale', 'auto']
+            },
+            "Decision Tree": {
+                'max_depth': [3, 5, 7],
+            }
+        }
+
+        all_model_predictions = {}
+        results_metrics = {}
+
+        # Sort data by the x-axis column for time series split
+        df_sorted = df.sort_values(by=xaxis_col).reset_index(drop=True)
+        X_sorted = df_sorted[[xaxis_col]]
+        y_sorted = df_sorted[yaxis_col]
+
+        # Use TimeSeriesSplit for cross-validation if x-axis is temporal, else KFold
+        # Assuming xaxis_col is often temporal, but if not, KFold might be better
+        # For simplicity, we will use TimeSeriesSplit for all cases here given the user's focus on temporal data.
+        # However, for truly non-temporal X, a standard KFold or train_test_split would be more appropriate.
+        try:
+            tscv = TimeSeriesSplit(n_splits=min(5, len(df_sorted) // 2)) # Ensure n_splits is not too large
+        except ValueError: # Not enough data for 5 splits
+            tscv = TimeSeriesSplit(n_splits=2) # Fallback to 2 splits or fewer
+
+        scaler_X = StandardScaler()
+        X_scaled = scaler_X.fit_transform(X_sorted)
+
+        # Generate future data for prediction (e.g., 10 future points beyond max X value)
+        max_x = X_sorted[xaxis_col].max()
+        # Create future X values, assuming a step similar to the average step in the data
+        if len(X_sorted) > 1:
+            avg_step = X_sorted[xaxis_col].diff().mean()
+        else:
+            avg_step = 1 # Default step if only one data point
+
+        future_x_values = np.arange(max_x + avg_step, max_x + (10 * avg_step) + 0.1, avg_step)
+        X_future = pd.DataFrame(future_x_values, columns=[xaxis_col])
+        X_future_scaled = scaler_X.transform(X_future)
+
+
+        for name, model_instance in models_to_evaluate.items():
+            model = model_instance
+            if name in param_grids:
+                grid_search = GridSearchCV(model, param_grids[name], cv=tscv, scoring='r2', n_jobs=-1, verbose=0) # Set verbose to 0
+                grid_search.fit(X_scaled, y_sorted)
+                model = grid_search.best_estimator_
+            else:
+                model.fit(X_scaled, y_sorted)
+
+            # Make predictions for future values
+            future_predictions = model.predict(X_future_scaled)
+            df_pred = pd.DataFrame(future_predictions, index=future_x_values, columns=[yaxis_col])
+            all_model_predictions[name] = df_pred
+
+            # Calculate performance metrics on the training data
+            y_pred = model.predict(X_scaled)
+            r2 = r2_score(y_sorted, y_pred)
+            mae = mean_absolute_error(y_sorted, y_pred)
+            mse = mean_squared_error(y_sorted, y_pred)
+            rmse = np.sqrt(mse)
+
+            results_metrics[name] = {
+                "R2": r2, "MAE": mae, "MSE": mse, "RMSE": rmse
+            }
+
+        metrics_df = pd.DataFrame(results_metrics).T.round(3)
+        metrics_df.sort_values("R2", ascending=False, inplace=True)
+
+        return {
+            "error": False,
+            "actual_data": df.to_json(date_format='iso', orient='split'),
+            "all_model_predictions": {k: v.to_json(date_format='iso', orient='split') for k, v in all_model_predictions.items()},
+            "metrics_df": metrics_df.to_json(date_format='iso', orient='split'),
+            "best_model_name": metrics_df.index[0] if not metrics_df.empty else list(models_to_evaluate.keys())[0]
+        }
+
+    except Exception as e:
+        print(f"Error during custom data processing: {e}")
+        return {"error": True, "message": f"Error during custom data processing: {str(e)}"}

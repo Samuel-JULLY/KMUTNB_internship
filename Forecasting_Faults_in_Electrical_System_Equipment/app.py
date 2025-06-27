@@ -5,7 +5,7 @@ import pandas as pd
 import json
 import base64
 import io
-from script import process_csv_data # Ensure this script is present and functional
+from script import process_csv_data_temporal, process_custom_data
 
 # Add this line for Font Awesome
 external_stylesheets = ['https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css']
@@ -49,7 +49,7 @@ choice_layout = html.Div([
     html.Div([
         html.Button("TGA", id="btn-tga", n_clicks=0, className="choice-button", style={'backgroundColor': '#0A2A5E', 'color': 'white', 'padding': '15px 30px', 'fontSize': '1.2em', 'margin': '10px', 'border': 'none', 'borderRadius': '8px', 'cursor': 'pointer'}),
         html.Button("Oil", id="btn-oil", n_clicks=0, className="choice-button", style={'backgroundColor': '#6c757d', 'color': 'white', 'padding': '15px 30px', 'fontSize': '1.2em', 'margin': '10px', 'border': 'none', 'borderRadius': '8px', 'cursor': 'not-allowed', 'opacity': '0.6'}),
-        html.Button("Other", id="btn-other", n_clicks=0, className="choice-button", style={'backgroundColor': '#6c757d', 'color': 'white', 'padding': '15px 30px', 'fontSize': '1.2em', 'margin': '10px', 'border': 'none', 'borderRadius': '8px', 'cursor': 'not-allowed', 'opacity': '0.6'}),
+        html.Button("Other", id="btn-other", n_clicks=0, className="choice-button", style={'backgroundColor': '#0A2A5E', 'color': 'white', 'padding': '15px 30px', 'fontSize': '1.2em', 'margin': '10px', 'border': 'none', 'borderRadius': '8px', 'cursor': 'pointer'}),
     ], style={'textAlign': 'center', 'marginTop': '50px'}),
     html.Div(id='choice-output', style={'textAlign': 'center', 'marginTop': '20px', 'fontSize': '1.1em', 'color': 'red'}) # For messages if needed
 ])
@@ -128,9 +128,67 @@ tga_app_layout = html.Div([
             ])
         ])
     ),
+])
 
-    # --- Floating Action Buttons ---
-    html.Div(id='floating-buttons-container', children=[
+# --- Layout for the "Other" application ---
+other_app_layout = html.Div([
+    html.H1("Custom CSV Analysis and Prediction"),
+    html.Div([
+        html.H2("Upload any CSV file"),
+        dcc.Upload(
+            id='upload-other-data',
+            children=html.Div(['Drag and Drop or ', html.A('Select a File')]),
+            multiple=False
+        ),
+        html.Div(id='other-upload-error-message', style={'color': 'red', 'fontWeight': 'bold', 'marginTop': '10px'})
+    ], className="card upload-section"),
+
+    # Dropdowns for X and Y axis selection
+    html.Div([
+        html.Label("X-axis Column (Temporal Column)"),
+        dcc.Dropdown(id='xaxis-column-select', options=[], value=None, clearable=False, className="custom-dropdown"),
+    ], className="control-group", style={'marginTop': '20px', 'width': '48%', 'display': 'inline-block', 'marginRight': '2%'}),
+    html.Div([
+        html.Label("Y-axis Column (Target Column)"),
+        dcc.Dropdown(id='yaxis-column-select', options=[], value=None, clearable=False, className="custom-dropdown"),
+    ], className="control-group", style={'marginTop': '20px', 'width': '48%', 'display': 'inline-block', 'marginLeft': '2%'}),
+
+    # Dropdowns for Model Selection and optional filters for custom data
+    html.Div([
+        html.Label("Prediction Model"),
+        dcc.Dropdown(id='other-model-select', options=[], value=None, clearable=False, className="custom-dropdown"),
+    ], className="control-group", style={'marginTop': '20px', 'width': '48%', 'display': 'inline-block', 'marginRight': '2%'}),
+    
+    html.Button("Run Custom Analysis", id="run-custom-analysis-button", n_clicks=0, className="custom-analysis-button", style={'backgroundColor': '#0A2A5E', 'color': 'white', 'padding': '10px 20px', 'fontSize': '1.0em', 'margin': '20px 0', 'border': 'none', 'borderRadius': '8px', 'cursor': 'pointer'}),
+
+
+    dcc.Store(id='other-processed-data', data=None), # Store for the uploaded "Other" data and column names
+    dcc.Store(id='custom-analysis-results', data=None), # Store for analysis results from script.py
+
+    dcc.Loading(
+        id="loading-custom-content",
+        type="circle",
+        children=html.Div(id='custom-analysis-output', children=[
+            html.Div(id="custom-welcome-message", children="Upload a CSV, select columns, and run analysis.", className="card welcome-message"),
+            html.Div(id='custom-analysis-graph-and-metrics', style={'display': 'none'}, children=[
+                html.H3(id="custom-graph-title", children=""),
+                dcc.Graph(id='custom-main-graph', figure=go.Figure()),
+                html.Div(id='custom-metrics-output', className="metrics-card"),
+            ])
+        ])
+    )
+])
+
+
+# --- Main App Layout including dcc.Location, page content, and global floating elements ---
+app.layout = html.Div([
+    dcc.Location(id='url', refresh=False), # Add dcc.Location to track URL
+    dcc.Store(id='url-initialized', data=False), # NEW: Store to track if URL has been initialized
+    html.Div(id='page-content'), # This div will contain either choice_layout or tga_app_layout
+
+    # --- Global Floating Action Buttons Container ---
+    # These buttons will always exist in the DOM, their visibility controlled by callbacks
+    html.Div(id='floating-buttons-container-global', children=[
         html.Button(id='home-button', className='floating-button home-button', n_clicks=0, children=[
             html.I(className="fas fa-home")
         ]),
@@ -140,9 +198,9 @@ tga_app_layout = html.Div([
         html.Button(id='chatbot-button', className='floating-button chatbot-button', n_clicks=0, children=[
             html.I(className="fas fa-robot")
         ]),
-    ]),
-    
-    # --- Info Modal ---
+    ], style={'display': 'none'}), # Initial display is none, full style handled by callback.
+
+    # --- Global Info Modal ---
     html.Div(id='info-modal', className='info-modal', children=[
         html.Div(className='info-modal-content', children=[
             html.Button("X", id="info-close-button", className="info-close-button"),
@@ -157,14 +215,14 @@ tga_app_layout = html.Div([
             html.H4("Need help?", className="info-subtitle"),
             html.P("Use the chatbot button (robot icon) at the bottom right to ask the AI your questions.", className="info-text"),
             html.Div(className="info-footer", children=[
-                html.P("Developed by [Your Name/Team]", className="info-footer-text"),
-                html.P("Version 1.0", className="info-footer-text")
+                html.P("Developed by Samuel JULLY", className="info-footer-text"),
+                html.P("Version 1.2", className="info-footer-text")
             ])
         ])
     ]),
     # --- END of Info section ---
 
-    # --- Chatbot Modal Iframe ---
+    # --- Global Chatbot Modal Iframe ---
     html.Div(id='chatbot-modal', className='chatbot-modal', children=[
         html.Div(className='chatbot-modal-content', children=[
             html.Button("X", id="chatbot-close-button", className="chatbot-close-button"),
@@ -179,15 +237,23 @@ tga_app_layout = html.Div([
     # --- END of Chatbot section ---
 ])
 
-# --- Main App Layout including dcc.Location and page content ---
-app.layout = html.Div([
-    dcc.Location(id='url', refresh=False), # Add dcc.Location to track URL
-    html.Div(id='page-content') # This div will contain either choice_layout or tga_app_layout
-])
-
-# Callback to handle button clicks and redirect to TGA app or show message
+# NEW CALLBACK: Initialize URL to '/' on first load
 @app.callback(
-    Output('url', 'pathname'),
+    Output('url', 'pathname'), # MODIFIED: Removed allow_duplicate=True
+    Output('url-initialized', 'data'),
+    Input('url', 'pathname'), # Trigger on initial load or any URL change
+    State('url-initialized', 'data'),
+    prevent_initial_call=False # Allow this callback to run on initial load
+)
+def initialize_url(current_pathname, initialized):
+    if not initialized and current_pathname != '/':
+        # If not initialized AND current path is not already '/', redirect to '/'
+        return '/', True # Redirect to root and set initialized to True
+    return no_update, no_update # Do nothing if already initialized or already at root
+
+# Callback to handle button clicks and redirect to TGA app, Other app, or show message
+@app.callback(
+    Output('url', 'pathname', allow_duplicate=True),
     Output('choice-output', 'children', allow_duplicate=True), # Allow duplicate outputs
     Input('btn-tga', 'n_clicks'),
     Input('btn-oil', 'n_clicks'),
@@ -198,12 +264,14 @@ def navigate_to_app(n_tga, n_oil, n_other):
     ctx_triggered = ctx.triggered_id
     if ctx_triggered == 'btn-tga':
         return '/tga-app', "" # Redirect to /tga-app
-    elif ctx_triggered == 'btn-oil' or ctx_triggered == 'btn-other':
-        return no_update, "Cette section n'est pas encore disponible. Veuillez choisir 'TGA'."
+    elif ctx_triggered == 'btn-other':
+        return '/other-app', "" # Redirect to /other-app
+    elif ctx_triggered == 'btn-oil':
+        return no_update, "Cette section n'est pas encore disponible. Veuillez choisir 'TGA' ou 'Other'."
     return no_update, ""
 
 
-# NEW CALLBACK: To handle the Home button click
+# NEW CALLBACK: To handle the Home button click (now a single global home button)
 @app.callback(
     Output('url', 'pathname', allow_duplicate=True), # Allow duplicate outputs
     Input('home-button', 'n_clicks'),
@@ -214,6 +282,57 @@ def navigate_to_home(n_clicks):
         return '/' # Redirect to the root path
     return no_update
 
+# NEW CALLBACK: To manage the visibility of global floating elements
+@app.callback(
+    Output('floating-buttons-container-global', 'style'),
+    Output('home-button', 'style'),
+    Output('info-button', 'style'),
+    Output('chatbot-button', 'style'),
+    Input('url', 'pathname')
+)
+def manage_global_elements_visibility(pathname):
+    # Base style for buttons when visible, ensuring top-right fixed position
+    visible_container_style = {
+        'position': 'fixed',
+        'top': '20px',
+        'right': '20px',
+        'display': 'flex',
+        'flexDirection': 'column',
+        'gap': '10px',
+        'zIndex': '1000'
+    }
+    
+    # Styles for individual buttons
+    home_button_visible_style = {'display': 'block'}
+    info_button_visible_style = {'display': 'block'}
+    chatbot_button_visible_style = {'display': 'block'}
+
+    # Default hidden styles
+    hidden_style = {'display': 'none'}
+
+    if pathname == '/tga-app':
+        return (
+            visible_container_style, # Container is visible and positioned
+            home_button_visible_style, # Home button visible
+            info_button_visible_style, # Info button visible
+            chatbot_button_visible_style # Chatbot button visible
+        )
+    elif pathname == '/other-app':
+        return (
+            visible_container_style, # Container is visible and positioned
+            home_button_visible_style, # Home button visible
+            info_button_visible_style, # Info button visible
+            chatbot_button_visible_style # Chatbot button visible
+        )
+    else:
+        # Default state (e.g., choice screen): container and all buttons hidden
+        return (
+            hidden_style,
+            hidden_style,
+            hidden_style,
+            hidden_style
+        )
+
 
 # Callback to display the correct layout based on the URL
 @app.callback(
@@ -223,10 +342,159 @@ def navigate_to_home(n_clicks):
 def display_page(pathname):
     if pathname == '/tga-app':
         return tga_app_layout
-    else:
+    elif pathname == '/other-app':
+        return other_app_layout
+    elif pathname == '/' or pathname == '/home': # Modified to explicitly handle / and /home
         return choice_layout
+    else: # Fallback for any other unknown path
+        return html.Div([
+            html.H1("404 - Page Not Found", style={'textAlign': 'center', 'marginTop': '100px'}),
+            html.P("The requested URL was not found on this server.", style={'textAlign': 'center'}),
+            dcc.Link("Go to Home", href="/", style={'textAlign': 'center', 'display': 'block', 'marginTop': '20px'})
+        ])
 
-# Callback to handle file upload and store processed data
+# Callback to handle file upload for "Other" mode and populate dropdowns
+@app.callback(
+    Output('other-processed-data', 'data'),
+    Output('other-upload-error-message', 'children'),
+    Output('xaxis-column-select', 'options'),
+    Output('yaxis-column-select', 'options'),
+    Output('xaxis-column-select', 'value'),
+    Output('yaxis-column-select', 'value'),
+    Output('other-model-select', 'options'),
+    Input('upload-other-data', 'contents'),
+    State('upload-other-data', 'filename'),
+    prevent_initial_call=True
+)
+def handle_other_uploaded_file_and_populate_dropdowns(contents, filename):
+    if contents is None:
+        return None, "", [], [], None, None, []
+
+    try:
+        content_type, content_string = contents.split(',')
+        decoded = base64.b64decode(content_string).decode('utf-8')
+        df = pd.read_csv(io.StringIO(decoded))
+
+        if df.empty:
+            return None, "The uploaded CSV file is empty.", [], [], None, None, []
+
+        columns = df.columns.tolist()
+        options = [{'label': col, 'value': col} for col in columns]
+
+        # Store the dataframe as JSON in a dcc.Store
+        df_json = df.to_json(date_format='iso', orient='split')
+
+        # Dummy model options for custom analysis (will be replaced by actual models from script.py)
+        model_options = [{'label': 'Linear Regression', 'value': 'Linear Regression'},
+                         {'label': 'Random Forest', 'value': 'Random Forest'},
+                         {'label': 'Decision Tree', 'value': 'Decision Tree'},
+                         {'label': 'KNN', 'value': 'KNN'},
+                         {'label': 'SVM', 'value': 'SVM'}] # Example models - ensure these match script.py
+
+        return {'df': df_json, 'columns': columns}, "", options, options, None, None, model_options
+    except Exception as e:
+        return None, f"Error processing file: {str(e)}", [], [], None, None, []
+
+
+# Callback to run custom analysis and update the graph and metrics for "Other" mode
+@app.callback(
+    Output('custom-analysis-results', 'data'),
+    Output('custom-analysis-graph-and-metrics', 'style'),
+    Output('custom-welcome-message', 'style'),
+    Output('custom-main-graph', 'figure'),
+    Output('custom-metrics-output', 'children'),
+    Output('custom-graph-title', 'children'),
+    Input('run-custom-analysis-button', 'n_clicks'),
+    State('other-processed-data', 'data'),
+    State('xaxis-column-select', 'value'),
+    State('yaxis-column-select', 'value'),
+    State('other-model-select', 'value'),
+    prevent_initial_call=True
+)
+def run_custom_analysis_and_update_graph(n_clicks, data, xaxis_col, yaxis_col, model_name):
+    if n_clicks is None or data is None or xaxis_col is None or yaxis_col is None or model_name is None:
+        # Initial state or missing selections
+        return None, {'display': 'none'}, {'display': 'block'}, go.Figure(), html.Div(), ""
+
+    df = pd.read_json(data['df'], orient='split')
+
+    # Ensure the columns are numeric if they are meant to be plotted as continuous values
+    try:
+        df[xaxis_col] = pd.to_numeric(df[xaxis_col], errors='coerce')
+        df[yaxis_col] = pd.to_numeric(df[yaxis_col], errors='coerce')
+        df.dropna(subset=[xaxis_col, yaxis_col], inplace=True)
+    except Exception as e:
+        return None, {'display': 'none'}, {'display': 'block'}, go.Figure(), html.Div(f"Error converting columns to numeric: {str(e)}"), "Data Error"
+
+
+    # Call the new function in script.py for custom data processing
+    analysis_results = process_custom_data(df.to_json(date_format='iso', orient='split'), xaxis_col, yaxis_col)
+    
+    if analysis_results.get('error'):
+        return None, {'display': 'none'}, {'display': 'block'}, go.Figure(), html.Div(analysis_results['message']), "Analysis Error"
+
+
+    # Extract results for plotting and metrics
+    actual_data = pd.read_json(analysis_results['actual_data'], orient='split')
+    all_model_predictions = {k: pd.read_json(v, orient='split') for k, v in analysis_results['all_model_predictions'].items()}
+    metrics_df = pd.read_json(analysis_results['metrics_df'], orient='split')
+
+    traces = []
+    
+    # Plot actual data
+    traces.append(go.Scatter(x=actual_data[xaxis_col], y=actual_data[yaxis_col], 
+                             mode='lines+markers', name=f'Actual {yaxis_col}'))
+
+    # Plot predictions for the selected model
+    if model_name in all_model_predictions:
+        predicted_data = all_model_predictions[model_name]
+        
+        # Ensure the predicted data covers the same X-axis range for connection
+        # Find the last actual X value
+        last_actual_x = actual_data[xaxis_col].max()
+        
+        # If the last actual x value is not in the predicted data's index, add it
+        if last_actual_x not in predicted_data.index:
+            # Get the last actual Y value for seamless connection
+            last_actual_y = actual_data[actual_data[xaxis_col] == last_actual_x][yaxis_col].iloc[0] if not actual_data[actual_data[xaxis_col] == last_actual_x].empty else None
+            
+            if last_actual_y is not None:
+                # Add the last actual point to the predicted data for a continuous line
+                predicted_data.loc[last_actual_x] = last_actual_y
+                predicted_data = predicted_data.sort_index()
+
+        traces.append(go.Scatter(x=predicted_data.index, y=predicted_data[yaxis_col],
+                                 mode='lines+markers', name=f'Predicted {yaxis_col} ({model_name})',
+                                 line=dict(dash='dash')))
+
+
+    # Display performance metrics for the selected model
+    m = metrics_df.loc[model_name]
+    metrics_text = html.Div([
+        html.H4("Performance Summary"),
+        html.Ul([
+            html.Li(f"R² Score: {m.get('R2', 'N/A'):.3f}"),
+            html.Li(f"Mean Absolute Error: {m.get('MAE', 'N/A'):.3f}"),
+            html.Li(f"Mean Squared Error: {m.get('MSE', 'N/A'):.3f}"),
+            html.Li(f"Root Mean Squared Error: {m.get('RMSE', 'N/A'):.3f}")
+        ])
+    ])
+
+    figure = {
+        'data': traces,
+        'layout': go.Layout(
+            title=f"Prediction of {yaxis_col} over {xaxis_col} using {model_name}",
+            xaxis=dict(title=xaxis_col),
+            yaxis=dict(title=yaxis_col),
+            hovermode='x unified',
+            legend=dict(orientation="h", x=0.5, xanchor='center', y=-0.2)
+        )
+    }
+
+    return analysis_results, {'display': 'block'}, {'display': 'none'}, figure, metrics_text, f"Prediction of {yaxis_col} over {xaxis_col}"
+
+
+# Callback to handle file upload and store processed data for TGA
 @app.callback(
     Output('processed-data', 'data'),
     Output('upload-error-message', 'children'),
@@ -241,7 +509,7 @@ def handle_uploaded_file(contents):
     content_type, content_string = contents.split(',')
     decoded = base64.b64decode(content_string.encode('utf-8')).decode('utf-8')
 
-    context = process_csv_data(decoded)
+    context = process_csv_data_temporal(decoded)
     context_serialable = convert_context_to_json_serialable(context)
 
     if context_serialable.get("error"):
@@ -253,7 +521,7 @@ def handle_uploaded_file(contents):
         return context_serialable, ""
 
 
-# Callback to update filter options and visibility of upload/welcome sections
+# Callback to update filter options and visibility of upload/welcome sections for TGA
 @app.callback(
     Output('model-select', 'options'),
     Output('model-select', 'value'),
@@ -262,7 +530,7 @@ def handle_uploaded_file(contents):
     Output('mfg-select', 'options'),
     Output('mfg-select', 'value'),
     Output('fault-select', 'options'),
-    Output('fault-select', 'value'),
+    Output('fault-select', 'value'), # Corrected: only one pair of these
     Output('year-slider', 'min'),
     Output('year-slider', 'max'),
     Output('year-slider', 'value'),
@@ -272,7 +540,7 @@ def handle_uploaded_file(contents):
     Output('analysis-content', 'style'), # New output to control analysis content visibility
     Input('processed-data', 'data')
 )
-def update_filter_options_and_visibility(data):
+def update_filter_options_and_visibility_tga(data):
     # Default values for the RangeSlider when no data is processed
     default_year_min = 1900
     default_year_max = 2000
@@ -284,10 +552,10 @@ def update_filter_options_and_visibility(data):
     if data is None or data.get("error"):
         # Return empty/default options for filters and display upload/welcome sections
         return (
-            [], None, # model_select
-            [], "all", # codetx_select
-            [], "all", # mfg_select
-            [], "all", # fault_select
+            [], None, # model_select options, value
+            [], "all", # codetx_select options, value
+            [], "all", # mfg_select options, value
+            [], "all", # fault_select options, value (Corrected: only one pair)
             default_year_min, default_year_max, default_year_value, default_year_marks, # year_slider
             {'display': 'block'}, # upload-section-wrapper style (visible)
             {'display': 'block'},  # initial-welcome-message style (visible)
@@ -338,7 +606,7 @@ def update_filter_options_and_visibility(data):
         {'display': 'block'} # analysis-content style (visible)
     )
 
-# Callback to update the graph, metrics, and filtered data in the store
+# Callback to update the graph, metrics, and filtered data in the store for TGA
 @app.callback(
     Output('main-graph', 'figure'),
     Output('metrics-output', 'children'),
@@ -355,7 +623,7 @@ def update_filter_options_and_visibility(data):
     State('year-slider', 'min'), # For reset
     State('year-slider', 'max')  # For reset
 )
-def update_graph(model_name, codetx_selected, mfg_selected, fault_selected, year_range, reset_clicks, data, model_options, year_min_state, year_max_state):
+def update_graph_tga(model_name, codetx_selected, mfg_selected, fault_selected, year_range, reset_clicks, data, model_options, year_min_state, year_max_state):
     # If no data is loaded or if an error is present, return empty components
     if data is None or data.get("error"):
         return go.Figure(), html.Div(""), "", None # Empty figure, empty metrics, empty title, empty table data
