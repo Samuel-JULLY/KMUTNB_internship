@@ -1,17 +1,19 @@
-# Utilise une image Python officielle
 FROM python:3.11-slim
 
-# Définit le répertoire de travail
+# Installe les dépendances système minimales
+RUN apt-get update && apt-get install -y git && rm -rf /var/lib/apt/lists/*
+
+# Crée un dossier de travail
 WORKDIR /app
 
 # Copie les fichiers nécessaires
-COPY requirements.txt ./
+COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY . .
+COPY app.py .
 
-# Expose le port utilisé par Gradio
+# Expose le port Gradio
 EXPOSE 7860
 
-# Commande pour lancer l'app
+# Démarre l’application
 CMD ["python", "app.py"]
