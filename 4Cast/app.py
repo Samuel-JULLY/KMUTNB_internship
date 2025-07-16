@@ -13,6 +13,7 @@ import os   # Import the os module
 import signal # Import the signal module to handle shutdown signals
 from flask import request # Import request from flask to get Werkzeug shutdown function
 import socket # NEW: Import the socket module for single instance locking
+import sys  # à ajouter en haut si pas déjà présent
 
 # Add this line for Font Awesome
 external_stylesheets = ['https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css']
@@ -900,42 +901,34 @@ def quit_application(n_clicks):
     return no_update # Do nothing if button not clicked
 
 if __name__ == '__main__':
+    import sys  # à ajouter en haut si pas déjà présent
+
     port = 8050
     host = '127.0.0.1'
     url = f"http://{host}:{port}/"
 
-    # NEW: --- Single instance lock using a socket ---
-    # Try to acquire a lock on the port. If it's already in use, it means another instance is running.
+    # --- Verrou d'instance unique via socket ---
     try:
         lock_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        # Set SO_REUSEADDR to allow the socket to be bound to an address that is already in use
-        # (e.g., if the previous process didn't close cleanly).
         lock_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        lock_socket.bind((host, port)) # Try to bind to the port
-        # If binding succeeds, this instance is the first one, keep the socket open as a lock
-        print(f"Application instance acquired lock on {host}:{port}") # For debugging
+        lock_socket.bind((host, port))  # Essaye de se lier au port
+        print(f"[4Cast] Lock acquis sur {host}:{port}")
+
+        # ✅ Ouvrir le navigateur uniquement si l'on a le lock
+        def open_browser_after_delay():
+            time.sleep(1)
+            webbrowser.open_new(url)
+            print(f"[4Cast] Navigateur ouvert sur {url}")
+
+        browser_thread = threading.Thread(target=open_browser_after_delay)
+        browser_thread.daemon = True
+        browser_thread.start()
+
     except socket.error:
-        print(f"Another instance of the application is already running on {host}:{port}. Exiting.")
-        # If binding fails, another instance is running, so exit this one.
-        # This will prevent another browser window from opening.
-        os._exit(0) # Force exit this process
+        print(f"[4Cast] Une autre instance tourne déjà sur {host}:{port}. Fermeture.")
+        os._exit(0)
 
-    # --- End of Single instance lock ---
-
-    # Function to open the browser after a short delay
-    def open_browser_after_delay():
-        time.sleep(1) # Wait for 1 second to allow the server to start
-        webbrowser.open_new(url)
-        print(f"Opening browser to {url}") # Log message for debugging
-
-    # Start a thread to open the browser
-    browser_thread = threading.Thread(target=open_browser_after_delay)
-    browser_thread.daemon = True # Allow the main program to exit even if this thread is still running
-    browser_thread.start()
-
-    # Launch the Dash server
-    # debug=False is crucial for PyInstaller deployment to avoid issues with code reloading
+    # --- Lancement de l'application Dash ---
     app.run(debug=False, port=port, host=host)
 
-    # The lock_socket will automatically close when the process exits.
-    # No need for an explicit lock_socket.close() here as app.run_server is blocking.
+    # Le socket se ferme automatiquement à la fin du script
