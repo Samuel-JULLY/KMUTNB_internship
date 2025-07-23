@@ -239,7 +239,7 @@ app.layout = html.Div([
         html.Div(className='chatbot-modal-content', children=[
             html.Button("X", id="chatbot-close-button", className="chatbot-close-button"),
             html.Iframe(
-                src="https://761d1082bd75793e67.gradio.live/",
+                src="http://199.21.175.245:7861/",
                 width="850",
                 height="450",
                 style={'border': 'none'} # Keep this inline as it's specific iframe styling
