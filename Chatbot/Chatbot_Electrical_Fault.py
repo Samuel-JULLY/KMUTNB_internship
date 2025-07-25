@@ -28,7 +28,7 @@ def get_latest_disaster_news(user_input, max_articles=5):
     if not feed.entries:
         return "No recent news found related to your question."
 
-    # Mots-clés pour filtrer les événements naturels
+    # KeyWords for electrical fault
 
     keywords = [
     "electrical component",
@@ -86,7 +86,7 @@ def get_latest_disaster_news(user_input, max_articles=5):
         link = entry.link
         date = entry.get("published_parsed")
 
-        # Formatage de la date
+        # Format of the date
         if date:
             pub_date = datetime(*date[:6]).strftime("%Y-%m-%d %H:%M")
         else:
@@ -103,7 +103,7 @@ def get_latest_disaster_news(user_input, max_articles=5):
 
     return "Here are the latest disaster-related news articles related to your question:\n\n" + "\n".join(relevant_articles)
 
-# strict system prompt for natural disaster
+# strict system prompt for electrical fault
 system_prompt = (
     "You are an AI assistant specialized strictly in electrical fault and machine learning. "
     "Answer only questions about fault in electrical system and machine learning"
@@ -114,7 +114,7 @@ def chat_with_model(user_input, chat_history=None):
     if chat_history is None:
         chat_history = []
 
-    # 1. Génération initiale du modèle
+    # 1. First generation of the model
     messages = [{"role": "system", "content": system_prompt}] + chat_history + [{"role": "user", "content": user_input}]
     chat_input_text = tokenizer.apply_chat_template(
         messages, tokenize=False, add_generation_prompt=True
@@ -134,7 +134,7 @@ def chat_with_model(user_input, chat_history=None):
     generated_tokens = outputs[0][input_length:]
     model_response = tokenizer.decode(generated_tokens, skip_special_tokens=True).strip()
 
-    # 2. Détection d'une réponse basée sur des limites de connaissance
+    # 2. Detection of answer based on low knowledge
     lower_response = model_response.lower()
     triggers = [
         "as of", "my knowledge", "cutoff", "i was trained", "september 2023",
@@ -142,7 +142,7 @@ def chat_with_model(user_input, chat_history=None):
     ]
     limited_knowledge = any(trigger in lower_response for trigger in triggers)
 
-    # 3. Recherche seulement si la réponse est affectée par la limite de données
+    # 3. If the model is limited by his knowledge
     if limited_knowledge:
         news_summary = get_latest_disaster_news(user_input)
         full_response = (
@@ -153,7 +153,7 @@ def chat_with_model(user_input, chat_history=None):
     else:
         full_response = model_response
 
-    # 4. Mise à jour de l’historique
+    # 4. History's update
     chat_history.append({"role": "user", "content": user_input})
     chat_history.append({"role": "assistant", "content": full_response})
 
@@ -168,12 +168,12 @@ with gr.Blocks() as demo:
         send_btn = gr.Button("Send")
         reset_btn = gr.Button("Restart chatbot", variant="stop")
 
-    # Fonction de reset
+    # Reset function
     def reset_chat():
         initial_state = [{"role": "system", "content": system_prompt}]
         return [], initial_state, ""
 
-    # Envoi message
+    # Send message
     send_btn.click(chat_with_model, inputs=[msg, state], outputs=[chatbot, state])
     send_btn.click(lambda: "", None, msg)
 
